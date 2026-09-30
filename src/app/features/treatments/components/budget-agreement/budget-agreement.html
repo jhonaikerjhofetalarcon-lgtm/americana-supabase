@@ -1,0 +1,44 @@
+<button class="budget-action" type="button" (click)="open()">
+  {{ plan().status === 'PRESENTADO' && canWrite ? 'Revisar y firmar presupuesto' : 'Presupuesto y firma' }}
+</button>
+@if (visible()) {
+  <button type="button" class="budget-scrim" aria-label="Cerrar presupuesto" (click)="close()"></button>
+  <section class="budget-dialog" appModal aria-label="Firma del presupuesto" [modalDismissDisabled]="saving()" (modalDismiss)="close()">
+    <header class="dialog-heading"><div><small>Plan y presupuesto</small><h2>{{ document() ? 'Constancia del presupuesto' : 'Revisar antes de firmar' }}</h2></div>
+      <button type="button" [disabled]="saving()" (click)="close()" aria-label="Cerrar">×</button></header>
+    @if (loading()) { <p role="status">Consultando el presupuesto…</p> }
+    @if (error()) { <div class="budget-error" role="alert">{{ error() }} <button type="button" [disabled]="saving()" (click)="open()">Actualizar presupuesto</button></div> }
+    @if (reviewPlan(); as budget) {
+      <article class="budget-document">
+        <header><small>Dental Americana</small><h2>Presupuesto de tratamiento</h2><p>{{ budget.code }} · {{ budget.patientName }}</p></header>
+        @if (document(); as agreement) {
+          <p class="signed-status">Firmado el {{ agreement.signedAt | date:'dd/MM/yyyy, HH:mm' }} · Registrado por usuario #{{ agreement.registeredBy }}</p>
+          @if (agreement.currentStatus === 'CANCELADO') { <p class="budget-error">Plan cancelado. Esta copia conserva el acuerdo original.</p> }
+        }
+        <div class="procedure-list">
+          @for (item of budget.items; track item.id) {
+            <div><span><strong>{{ item.serviceName }}</strong><small>{{ item.description }} · {{ item.quantity }} unidad(es) · {{ item.sessions }} sesión(es) @if (item.tooth) { · Pieza {{ item.tooth }} }</small></span><strong>{{ item.subtotal | currency:'PEN':'S/ ':'1.2-2' }}</strong></div>
+          }
+        </div>
+        <dl><div><dt>Subtotal</dt><dd>{{ budget.subtotal | currency:'PEN':'S/ ':'1.2-2' }}</dd></div>
+          <div><dt>Descuento</dt><dd>{{ budget.discount | currency:'PEN':'S/ ':'1.2-2' }}</dd></div>
+          <div class="total"><dt>Total acordado</dt><dd>{{ budget.total | currency:'PEN':'S/ ':'1.2-2' }}</dd></div></dl>
+        @if (budget.observations) { <p class="observations">{{ budget.observations }}</p> }
+        <p class="terms">He revisado los procedimientos, cantidades e importes de este presupuesto y acepto el total indicado. Los pagos se registran por separado. Este documento no sustituye el consentimiento informado de cada procedimiento.</p>
+        @if (document(); as agreement) {
+          <img class="saved-signature" [src]="agreement.signatureData" alt="Firma del paciente en el presupuesto" />
+          <p class="signature-caption">Firma del paciente · {{ budget.patientName }}</p>
+        }
+      </article>
+      @if (canSign()) {
+        <section class="signing">
+          <app-signature-pad [disabled]="saving()" (changed)="signature.set($event)" />
+          <label class="confirm"><input type="checkbox" [checked]="confirmed()" [disabled]="saving()" (change)="confirmed.set(!confirmed())" />El paciente revisó el presupuesto y confirma su aceptación.</label>
+          <button class="budget-action" type="button" [disabled]="saving() || !signature() || !confirmed()" (click)="save()">{{ saving() ? 'Guardando firma…' : 'Guardar presupuesto firmado' }}</button>
+        </section>
+      } @else if (document()) {
+        <div class="document-actions"><button type="button" class="budget-action" (click)="print()">Imprimir o guardar PDF</button><button type="button" (click)="close()">Cerrar</button></div>
+      } @else { <p>Este presupuesto no tiene firma registrada. Se puede firmar al presentarlo al paciente.</p> }
+    }
+  </section>
+}

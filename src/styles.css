@@ -1,0 +1,70 @@
+@import '@fontsource-variable/inter/wght.css';
+@import '@fontsource-variable/manrope/wght.css';
+@import 'tailwindcss';
+
+@media print {
+  body.printing-budget * { visibility: hidden !important; }
+  body.printing-budget .budget-document, body.printing-budget .budget-document * { visibility: visible !important; }
+  body.printing-budget *:has(.budget-document) > :not(:has(.budget-document)):not(.budget-document) { display: none !important; }
+  body.printing-budget *:has(.budget-document) { position: static !important; display: block !important; overflow: visible !important; height: auto !important; min-height: 0 !important; max-height: none !important; width: auto !important; margin: 0 !important; padding: 0 !important; border: 0 !important; box-shadow: none !important; background: white !important; }
+  body.printing-budget .budget-document { padding: 12mm; }
+}
+
+@media print {
+  @page clinical-history { size: A4; margin: 15mm; }
+  app-patient-clinical-report { page: clinical-history; }
+  body:has(app-patient-clinical-report) { min-width: 0; background: white; }
+  app-system-shell:has(app-patient-clinical-report) .sidebar,
+  app-system-shell:has(app-patient-clinical-report) .topbar,
+  app-system-shell:has(app-patient-clinical-report) .mobile-nav,
+  app-system-shell:has(app-patient-clinical-report) .scrim { display: none !important; }
+  app-system-shell:has(app-patient-clinical-report) .workspace { padding: 0 !important; min-height: 0; }
+  app-system-shell:has(app-patient-clinical-report) .system-layout { background: white; min-height: 0; }
+}
+
+:root { --primary:#2563eb; --primary-strong:#1769e0; --primary-soft:#eaf2ff; --ink:#172033; --muted:#6b7280; --canvas:#f5f7fb; --card:#fff; --border:#e7ecf3; --clinical:#123b41; --success:#20a970; --warning:#f59e0b; --danger:#e34c67; }
+* { box-sizing: border-box; }
+html { background: var(--canvas); }
+body { margin:0; min-width:320px; color:var(--ink); background:var(--canvas); font-family:'Inter Variable',system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
+button,input { font:inherit; } button { cursor:pointer; }
+h1,h2,h3,h4 { margin:0; font-family:'Manrope Variable','Inter Variable',sans-serif; }
+.focus-ring:focus-visible { outline:3px solid rgba(96,165,250,.65); outline-offset:3px; }
+
+@layer components {
+  .ui-button {
+    @apply flex items-center justify-center;
+    min-height: 39px;
+    gap: 6px;
+    padding: 0 12px;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    font-size: .63rem;
+    font-weight: 850;
+  }
+  .ui-button:disabled { cursor: wait; opacity: .55; }
+  .ui-button > svg { width: 15px; }
+  .ui-button--primary { color: #fff; background: #176f82; }
+  .ui-button--secondary { color: #587286; border-color: #d4e0e7; background: #fff; }
+  .ui-button--icon { width: 39px; padding: 0; }
+  .ui-button--compact { font-size: .61rem; font-weight: 800; }
+
+  .ui-alert {
+    @apply flex items-center;
+    gap: 7px;
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: .65rem;
+  }
+  .ui-alert > svg { width: 16px; }
+  .ui-alert--error { color: #9c3b43; background: #fff0f2; }
+  .ui-alert--success { color: #1e6c53; background: #eaf8f1; }
+}
+@media print {
+  body.printing-agreement * { visibility: hidden !important; }
+  body.printing-agreement .agreement-print,
+  body.printing-agreement .agreement-print * { visibility: visible !important; }
+  body.printing-agreement .agreement-dialog { position:static !important; inset:auto !important; display:block !important; overflow:visible !important; border:0 !important; box-shadow:none !important; }
+  body.printing-agreement .agreement-scrim { display:none !important; }
+  body.printing-agreement .agreement-print { position: fixed !important; inset: 0 auto auto 0 !important; width: 100% !important; padding: 16mm !important; box-sizing: border-box !important; }
+}

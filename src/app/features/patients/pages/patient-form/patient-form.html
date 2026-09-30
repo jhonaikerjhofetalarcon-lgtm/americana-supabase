@@ -1,0 +1,54 @@
+<section class="form-page">
+  <header class="page-title"><a routerLink="/sistema/pacientes" class="back focus-ring"><svg lucideArrowLeft></svg></a><div><p>Ficha maestra</p><h1>{{title()}}</h1><span>Los datos clínicos se completan únicamente por personal autorizado.</span></div></header>
+  @if (loadingPatient()) { <div class="loading-card">Cargando información del paciente…</div> }
+  @if (error()) { <div class="form-error"><svg lucideAlertTriangle></svg><span>{{error()}}</span></div> }
+  <form [formGroup]="form" (ngSubmit)="submit()">
+    <section class="form-card">
+      <header><span><svg lucideUserRound></svg></span><div><h2>Identificación</h2><p>Datos utilizados para evitar duplicados y generar la historia.</p></div><b>1</b></header>
+      <div class="field-grid">
+        <label>Tipo de documento<select formControlName="documentType" (change)="documentChanged()"><option value="DNI">DNI</option><option value="CE">Carné de extranjería</option><option value="PASAPORTE">Pasaporte</option><option value="SIN_DOCUMENTO">Sin documento</option></select></label>
+        <label>Número de documento<input formControlName="documentNumber" [readonly]="form.controls.documentType.value === 'SIN_DOCUMENTO'" inputmode="numeric" placeholder="74214580"></label>
+        <label class="wide">Nombres <em>*</em><input formControlName="firstNames" placeholder="Ana María">@if(form.controls.firstNames.touched && form.controls.firstNames.invalid){<small>Ingresa los nombres.</small>}</label>
+        <label>Apellido paterno <em>*</em><input formControlName="paternalSurname" placeholder="Torres"></label>
+        <label>Apellido materno<input formControlName="maternalSurname" placeholder="Quispe"></label>
+        <label>Fecha de nacimiento <em>*</em><input type="date" formControlName="birthDate"></label>
+        <label>Sexo<select formControlName="sex"><option value="FEMENINO">Femenino</option><option value="MASCULINO">Masculino</option><option value="OTRO">Otro</option><option value="NO_ESPECIFICA">No especifica</option></select></label>
+        <label>Lugar de nacimiento<input formControlName="birthPlace" placeholder="Ayacucho"></label>
+      </div>
+    </section>
+
+    <section class="form-card">
+      <header><span><svg lucideChevronRight></svg></span><div><h2>Información y contacto</h2><p>Datos administrativos y canales autorizados.</p></div><b>2</b></header>
+      <div class="field-grid">
+        <label>Ocupación<input formControlName="occupation"></label><label>Estado civil<select formControlName="maritalStatus"><option value="">Seleccionar</option><option>Soltero(a)</option><option>Casado(a)</option><option>Conviviente</option><option>Viudo(a)</option><option>Divorciado(a)</option></select></label>
+        <label>Grado de instrucción<input formControlName="educationLevel"></label><label>Religión <small class="optional">Opcional</small><input formControlName="religion"></label>
+        <label class="wide">Autoidentificación étnica <small class="optional">Opcional</small><input formControlName="ethnicSelfIdentification"></label>
+        <label>Celular<input formControlName="mobile" inputmode="tel" placeholder="940 577 075"></label><label>Teléfono alternativo<input formControlName="phone" inputmode="tel"></label>
+        <label class="wide whatsapp-consent"><input type="checkbox" formControlName="whatsappConsent"><span><strong>El paciente autoriza mensajes por WhatsApp</strong><small>Permite confirmaciones, recordatorios y seguimiento postconsulta. Puede revocar la autorización en cualquier momento.</small></span></label>
+        <label>Correo<input type="email" formControlName="email" placeholder="paciente@correo.com">@if(form.controls.email.touched && form.controls.email.invalid){<small>Correo inválido.</small>}</label>
+        <label class="wide">Dirección<input formControlName="address" placeholder="Distrito, calle y referencia"></label>
+      </div>
+    </section>
+
+    <section class="form-card" [class.required-section]="isMinor()">
+      <header><span><svg lucideShieldCheck></svg></span><div><h2>Responsable y emergencia</h2><p>{{isMinor() ? 'El responsable es obligatorio porque el paciente es menor.' : 'Completa esta información cuando corresponda.'}}</p></div><b>3</b></header>
+      <div class="subheading">Responsable del paciente</div>
+      <div class="field-grid"><label class="wide">Nombre completo<input formControlName="responsibleName"></label><label>Documento<input formControlName="responsibleDocument"></label><label>Parentesco<input formControlName="responsibleRelationship"></label><label>Teléfono<input formControlName="responsiblePhone" inputmode="tel"></label></div>
+      @if(!patientId()){
+        <div class="subheading">Contacto de emergencia</div>
+        <div class="field-grid"><label class="wide">Nombre completo<input formControlName="emergencyName"></label><label>Parentesco<input formControlName="emergencyRelationship"></label><label>Teléfono<input formControlName="emergencyPhone" inputmode="tel"></label></div>
+      }
+    </section>
+
+    <footer class="form-actions"><a routerLink="/sistema/pacientes">Cancelar</a><button type="submit" [disabled]="loading()"><svg lucideSave></svg>{{loading() ? 'Guardando…' : 'Guardar paciente'}}</button></footer>
+  </form>
+</section>
+
+@if(duplicateReviewOpen()){
+  <button class="modal-scrim" type="button" tabindex="-1" aria-label="Cerrar revisión" (click)="duplicateReviewOpen.set(false)"></button>
+  <section appModal class="duplicate-modal" aria-labelledby="duplicate-title" (modalDismiss)="duplicateReviewOpen.set(false)">
+    <span class="warning-icon"><svg lucideAlertTriangle></svg></span><h2 id="duplicate-title">Revisa posibles duplicados</h2><p>Encontramos fichas parecidas. Selecciona la correcta o confirma que se trata de otra persona.</p>
+    <div class="candidate-list">@for(item of duplicates();track item.id){<a [routerLink]="['/sistema/pacientes',item.id]"><span><strong>{{item.fullName}}</strong><small>{{item.historyNumber}} · {{item.documentNumber || 'Sin documento'}}</small></span><b>{{item.reason}}</b><svg lucideChevronRight></svg></a>}</div>
+    <footer><button type="button" (click)="duplicateReviewOpen.set(false)">Volver y revisar</button><button class="continue" type="button" (click)="submit(true)"><svg lucideCheck></svg>Es otra persona, crear</button></footer>
+  </section>
+}

@@ -1,0 +1,165 @@
+<section class="patient-page">
+  <a class="back-link focus-ring" routerLink="/sistema/pacientes"><svg lucideArrowLeft></svg> Volver a pacientes</a>
+
+  @if (loading()) {
+    <div class="state-card"><svg class="animate-spin" lucideLoaderCircle></svg><h1>Cargando ficha clínica</h1><p>Estamos consultando la información del paciente.</p></div>
+  } @else if (!patient()) {
+    <div class="state-card error-state"><svg lucideAlertTriangle></svg><h1>Ficha no disponible</h1><p>{{ error() }}</p><a routerLink="/sistema/pacientes">Ir a pacientes</a></div>
+  } @else {
+    <header class="patient-header" [class.inactive]="!patient()!.active">
+      <div class="patient-identity">
+        <span class="avatar"><svg lucideUserRound></svg></span>
+        <div><div class="header-kicker"><span>{{ patient()!.historyNumber }}</span><span class="status" [class.off]="!patient()!.active">{{ patient()!.active ? 'Paciente activo' : 'Paciente inactivo' }}</span></div>
+          <h1>{{ fullName() }}</h1>
+          <p>{{ patient()!.documentType === 'SIN_DOCUMENTO' ? 'Sin documento' : patient()!.documentType + ' ' + patient()!.documentNumber }} · {{ patient()!.age }} años · {{ patient()!.sex.replaceAll('_', ' ') }}</p>
+        </div>
+      </div>
+      <div class="header-actions no-print">
+        @if (canReadClinical) {
+          <a class="secondary focus-ring" [routerLink]="['/sistema/pacientes', patient()!.id, 'historia']"><svg lucideHistory></svg> Historia clínica completa</a>
+        }
+        <button class="secondary focus-ring" (click)="print()"><svg lucidePrinter></svg> Imprimir</button>
+        @if (canWritePatient()) {
+          <a class="secondary focus-ring" [routerLink]="['/sistema/pacientes', patient()!.id, 'editar']"><svg lucideEdit3></svg> Editar</a>
+          <button class="secondary focus-ring" [class.danger]="patient()!.active" [disabled]="saving()" (click)="changeStatus()"><svg lucidePower></svg>{{ patient()!.active ? 'Desactivar' : 'Reactivar' }}</button>
+        }
+      </div>
+    </header>
+
+    @if (activeAllergies().length) {
+      <aside class="allergy-alert"><svg lucideShieldAlert></svg><div><strong>Alerta de alergia activa</strong><p>@for (allergy of activeAllergies(); track allergy.id) {<span>{{ allergy.substance }} ({{ allergy.severity.toLowerCase() }})</span>}</p></div></aside>
+    }
+    @if (error()) { <div class="message error"><svg lucideAlertTriangle></svg><span>{{ error() }}</span></div> }
+    @if (success()) { <div class="message success"><svg lucideCheck></svg><span>{{ success() }}</span></div> }
+
+    <nav class="tabs no-print" aria-label="Secciones de la ficha">
+      <button [class.active]="tab() === 'summary'" (click)="setTab('summary')"><svg lucideActivity></svg>Resumen</button>
+      <button [class.active]="tab() === 'histories'" (click)="setTab('histories')"><svg lucideHistory></svg>Antecedentes <span>{{ patient()!.histories.length }}</span></button>
+      <button [class.active]="tab() === 'medication'" (click)="setTab('medication')"><svg lucidePill></svg>Alergias y medicación</button>
+      <button [class.active]="tab() === 'files'" (click)="setTab('files')"><svg lucideFiles></svg>Archivos <span>{{ patient()!.files.length }}</span></button>
+    </nav>
+
+    @if (tab() === 'summary') {
+      <div class="summary-grid">
+        <article class="panel wide">
+          <header><div><span class="panel-icon"><svg lucideUserRound></svg></span><div><h2>Datos del paciente</h2><p>Identificación y contacto</p></div></div></header>
+          <dl class="data-grid">
+            <div><dt>Fecha de nacimiento</dt><dd>{{ patient()!.birthDate | date:'dd/MM/yyyy':'UTC' }}</dd></div>
+            <div><dt>Lugar de nacimiento</dt><dd>{{ patient()!.birthPlace || 'No registrado' }}</dd></div>
+            <div><dt>Ocupación</dt><dd>{{ patient()!.occupation || 'No registrada' }}</dd></div>
+            <div><dt>Estado civil</dt><dd>{{ patient()!.maritalStatus || 'No registrado' }}</dd></div>
+            <div><dt>Grado de instrucción</dt><dd>{{ patient()!.educationLevel || 'No registrado' }}</dd></div>
+            <div><dt>Religión</dt><dd>{{ patient()!.religion || 'No registrada' }}</dd></div>
+            <div><dt>Identificación étnica</dt><dd>{{ patient()!.ethnicSelfIdentification || 'No registrada' }}</dd></div>
+            <div><dt>Registro</dt><dd>{{ patient()!.createdAt | date:'dd/MM/yyyy, HH:mm' }}</dd></div>
+          </dl>
+          <div class="contact-lines">
+            <p><svg lucidePhone></svg><span><small>Celular / teléfono</small>{{ patient()!.mobile || patient()!.phone || 'No registrado' }}</span></p>
+            <p><svg lucideMail></svg><span><small>Correo</small>{{ patient()!.email || 'No registrado' }}</span></p>
+            <p><svg lucideMapPin></svg><span><small>Domicilio</small>{{ patient()!.address || 'No registrado' }}</span></p>
+          </div>
+        </article>
+
+        <article class="panel">
+          <header><div><span class="panel-icon mint"><svg lucideHeartPulse></svg></span><div><h2>Contacto de emergencia</h2><p>{{ patient()!.emergencyContacts.length ? patient()!.emergencyContacts.length + ' registrado(s)' : 'Sin contacto' }}</p></div></div>
+            @if (canWritePatient() && patient()!.active) {<button class="icon-add no-print" title="Agregar contacto" (click)="toggleForm('contact')"><svg lucidePlus></svg></button>}
+          </header>
+          @for (contact of patient()!.emergencyContacts; track contact.id) {
+            <div class="compact-record"><div><strong>{{ contact.fullName }}</strong>@if (contact.primary) {<span class="tag">Principal</span>}<p>{{ contact.relationship }} · {{ contact.phone }}</p></div></div>
+          } @empty {<div class="empty-mini"><svg lucidePhone></svg><p>Agrega un contacto para situaciones de emergencia.</p></div>}
+          @if (openForm() === 'contact') {
+            <form class="inline-form no-print" [formGroup]="contactForm" (ngSubmit)="addContact()">
+              <label>Nombre completo<input formControlName="fullName" placeholder="Nombres y apellidos"></label>
+              <div class="form-row"><label>Parentesco<input formControlName="relationship" placeholder="Ej. Madre"></label><label>Teléfono<input formControlName="phone" inputmode="tel"></label></div>
+              <label class="check"><input type="checkbox" formControlName="primary"> Marcar como contacto principal</label>
+              <button class="primary" [disabled]="saving()">Guardar contacto</button>
+            </form>
+          }
+        </article>
+
+        <article class="panel">
+          <header><div><span class="panel-icon blue"><svg lucideBriefcaseMedical></svg></span><div><h2>Responsable</h2><p>Para menor o persona dependiente</p></div></div></header>
+          @if (patient()!.responsibleName) {
+            <dl class="stacked-data"><div><dt>Nombre</dt><dd>{{ patient()!.responsibleName }}</dd></div><div><dt>Parentesco</dt><dd>{{ patient()!.responsibleRelationship || 'No registrado' }}</dd></div><div><dt>Documento</dt><dd>{{ patient()!.responsibleDocument || 'No registrado' }}</dd></div><div><dt>Teléfono</dt><dd>{{ patient()!.responsiblePhone || 'No registrado' }}</dd></div></dl>
+          } @else {<div class="empty-mini"><svg lucideUserRound></svg><p>No requiere o no tiene responsable registrado.</p></div>}
+        </article>
+
+        <article class="panel wide next-step no-print">
+          <div><span class="panel-icon violet"><svg lucideCalendarPlus></svg></span><div><h2>Siguiente paso</h2><p>Consulta la agenda y programa la próxima atención del paciente.</p></div></div>
+          <a routerLink="/sistema/agenda">Ir a agenda</a>
+        </article>
+      </div>
+    }
+
+    @if (tab() === 'histories') {
+      <section class="content-panel">
+        <header class="section-heading"><div><h2>Antecedentes del paciente</h2><p>Información médica, familiar, quirúrgica, odontológica y hábitos.</p></div>
+          @if (canWriteClinical() && patient()!.active) {<button class="primary no-print" (click)="toggleForm('history')"><svg lucidePlus></svg>Agregar antecedente</button>}
+        </header>
+        @if (openForm() === 'history') {
+          <form class="entry-form no-print" [formGroup]="historyForm" (ngSubmit)="addHistory()">
+            <div class="form-row three"><label>Tipo<select formControlName="type"><option value="MEDICO">Médico</option><option value="FAMILIAR">Familiar</option><option value="QUIRURGICO">Quirúrgico</option><option value="ODONTOLOGICO">Odontológico</option><option value="HABITO">Hábito</option><option value="OTRO">Otro</option></select></label><label>Estado<select formControlName="status"><option value="ACTIVO">Activo</option><option value="CONTROLADO">Controlado</option><option value="RESUELTO">Resuelto</option><option value="NO_ESPECIFICA">No especifica</option></select></label><label>Fecha informada<input type="date" formControlName="reportedDate"></label></div>
+            <label>Descripción<textarea formControlName="description" rows="3" placeholder="Detalle confirmado por el paciente"></textarea></label>
+            <label>Observación<textarea formControlName="observation" rows="2"></textarea></label>
+            <div class="form-actions"><button type="button" class="secondary" (click)="openForm.set(null)">Cancelar</button><button class="primary" [disabled]="saving()">Guardar antecedente</button></div>
+          </form>
+        }
+        <div class="record-list">
+          @for (history of patient()!.histories; track history.id) {
+            <article class="record"><span class="record-icon"><svg lucideHistory></svg></span><div><header><strong>{{ history.type.replaceAll('_', ' ') }}</strong><span class="state-chip" [class.resolved]="history.status === 'RESUELTO'">{{ history.status.replaceAll('_', ' ') }}</span><time>{{ history.createdAt | date:'dd/MM/yyyy' }}</time></header><p>{{ history.description }}</p>@if (history.observation) {<small>{{ history.observation }}</small>}@if (history.reportedDate) {<small>Fecha informada: {{ history.reportedDate | date:'dd/MM/yyyy':'UTC' }}</small>}</div></article>
+          } @empty {<div class="empty-state"><svg lucideHistory></svg><h3>Sin antecedentes registrados</h3><p>Registra solo información confirmada por el paciente o el profesional.</p></div>}
+        </div>
+      </section>
+    }
+
+    @if (tab() === 'medication') {
+      <div class="clinical-columns">
+        <section class="content-panel">
+          <header class="section-heading"><div><h2>Alergias</h2><p>Alertas visibles durante toda la atención.</p></div>@if (canWriteClinical() && patient()!.active) {<button class="primary no-print" (click)="toggleForm('allergy')"><svg lucidePlus></svg>Agregar</button>}</header>
+          @if (openForm() === 'allergy') {
+            <form class="entry-form no-print" [formGroup]="allergyForm" (ngSubmit)="addAllergy()">
+              <label>Sustancia<input formControlName="substance" placeholder="Medicamento, alimento o material"></label>
+              <div class="form-row"><label>Severidad<select formControlName="severity"><option value="LEVE">Leve</option><option value="MODERADA">Moderada</option><option value="SEVERA">Severa</option></select></label><label>Estado<select formControlName="status"><option value="ACTIVA">Activa</option><option value="INACTIVA">Inactiva</option><option value="DESCARTADA">Descartada</option></select></label></div>
+              <label>Reacción<input formControlName="reaction" placeholder="Reacción reportada"></label><label>Observación<textarea formControlName="observation" rows="2"></textarea></label>
+              <div class="form-actions"><button type="button" class="secondary" (click)="openForm.set(null)">Cancelar</button><button class="primary" [disabled]="saving()">Guardar alergia</button></div>
+            </form>
+          }
+          <div class="record-list">
+            @for (allergy of patient()!.allergies; track allergy.id) {<article class="record allergy-record"><span class="record-icon"><svg lucideShieldAlert></svg></span><div><header><strong>{{ allergy.substance }}</strong><span class="severity" [attr.data-level]="allergy.severity">{{ allergy.severity }}</span><span class="state-chip">{{ allergy.status }}</span></header><p>{{ allergy.reaction || 'Reacción no especificada' }}</p>@if (allergy.observation) {<small>{{ allergy.observation }}</small>}</div></article>} @empty {<div class="empty-state"><svg lucideShieldAlert></svg><h3>Sin alergias registradas</h3><p>Confirma este dato en cada consulta clínica.</p></div>}
+          </div>
+        </section>
+        <section class="content-panel">
+          <header class="section-heading"><div><h2>Medicamentos</h2><p>Tratamiento farmacológico informado.</p></div>@if (canWriteClinical() && patient()!.active) {<button class="primary no-print" (click)="toggleForm('medication')"><svg lucidePlus></svg>Agregar</button>}</header>
+          @if (openForm() === 'medication') {
+            <form class="entry-form no-print" [formGroup]="medicationForm" (ngSubmit)="addMedication()">
+              <label>Medicamento<input formControlName="medication"></label><div class="form-row"><label>Dosis<input formControlName="dose"></label><label>Frecuencia<input formControlName="frequency"></label></div><label>Motivo<input formControlName="reason"></label>
+              <div class="form-row"><label>Inicio<input type="date" formControlName="startDate"></label><label>Fin<input type="date" formControlName="endDate"></label></div><label class="check"><input type="checkbox" formControlName="current"> Medicamento vigente</label>
+              <div class="form-actions"><button type="button" class="secondary" (click)="openForm.set(null)">Cancelar</button><button class="primary" [disabled]="saving()">Guardar medicamento</button></div>
+            </form>
+          }
+          <div class="record-list">
+            @for (medication of patient()!.medications; track medication.id) {<article class="record"><span class="record-icon pill"><svg lucidePill></svg></span><div><header><strong>{{ medication.medication }}</strong><span class="state-chip" [class.resolved]="!medication.current">{{ medication.current ? 'VIGENTE' : 'FINALIZADO' }}</span></header><p>{{ medication.dose || 'Dosis no indicada' }} · {{ medication.frequency || 'Frecuencia no indicada' }}</p>@if (medication.reason) {<small>Motivo: {{ medication.reason }}</small>}@if (medication.startDate) {<small>Desde {{ medication.startDate | date:'dd/MM/yyyy':'UTC' }} @if (medication.endDate) { hasta {{ medication.endDate | date:'dd/MM/yyyy':'UTC' }} }</small>}</div></article>} @empty {<div class="empty-state"><svg lucidePill></svg><h3>Sin medicamentos registrados</h3><p>No se informó medicación actual.</p></div>}
+          </div>
+        </section>
+      </div>
+    }
+
+    @if (tab() === 'files') {
+      <section class="content-panel">
+        <header class="section-heading"><div><h2>Archivos del paciente</h2><p>Documentos, consentimientos, radiografías, fotografías e informes.</p></div>@if ((canWritePatient() || canWriteClinical()) && patient()!.active) {<button class="primary no-print" (click)="toggleForm('file')"><svg lucideUpload></svg>Subir archivo</button>}</header>
+        @if (openForm() === 'file') {
+          <form class="entry-form upload-form no-print" [formGroup]="fileForm" (ngSubmit)="upload()">
+            <div class="form-row"><label>Categoría<select formControlName="category"><option value="DOCUMENTO">Documento</option><option value="CONSENTIMIENTO">Consentimiento</option><option value="RADIOGRAFIA">Radiografía</option><option value="FOTOGRAFIA">Fotografía</option><option value="INFORME">Informe</option><option value="OTRO">Otro</option></select></label><label>Descripción<input formControlName="description" placeholder="Descripción breve"></label></div>
+            <label class="file-picker"><input type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" (change)="chooseFile($event)"><svg lucideFilePlus2></svg><span><strong>{{ selectedFile()?.name || 'Seleccionar archivo' }}</strong><small>PDF, JPG o PNG · máximo 10 MB</small></span></label>
+            <div class="form-actions"><button type="button" class="secondary" (click)="openForm.set(null)">Cancelar</button><button class="primary" [disabled]="saving() || !selectedFile()">Adjuntar archivo</button></div>
+          </form>
+        }
+        <div class="file-grid">
+          @for (file of patient()!.files; track file.id) {
+            <article class="file-card"><span class="file-icon"><svg lucideFiles></svg></span><div><span class="tag">{{ file.category }}</span><strong>{{ file.originalName }}</strong><p>{{ file.description || 'Sin descripción' }}</p><small>{{ file.sizeBytes / 1024 | number:'1.0-0' }} KB · {{ file.createdAt | date:'dd/MM/yyyy, HH:mm' }}</small></div><button class="download no-print" [disabled]="downloadingId() === file.id" (click)="download(file)" title="Descargar"><svg lucideDownload [class.animate-spin]="downloadingId() === file.id"></svg></button></article>
+          } @empty {<div class="empty-state full"><svg lucideFiles></svg><h3>Sin archivos adjuntos</h3><p>Los archivos clínicos se almacenan asociados a esta ficha y quedan auditados.</p></div>}
+        </div>
+      </section>
+    }
+  }
+</section>

@@ -1,0 +1,2 @@
+export type BookingRequestStatus='PENDIENTE'|'CONTACTADO'|'AGENDADO'|'DESCARTADO';
+export interface BookingRequest{id:number;fullName:string;documentNumber?:string;mobile:string;email?:string;service:string;preferredDate?:string;preferredShift:string;message?:string;status:BookingRequestStatus;internalObservation?:string;appointmentId?:number;attendedBy?:number;createdAt:string;updatedAt:string;version:number}

@@ -1,0 +1,241 @@
+@if (account() && !autoOpen()) {
+  <section class="payment-entry">
+    <div>
+      <strong>Adelantos y pagos</strong
+      ><small>Saldo pendiente: {{ account()!.balance | currency: 'PEN' : 'S/ ' : '1.2-2' }}</small>
+    </div>
+    @if (canWrite && account()!.balance > 0 && account()!.status !== 'ANULADA') {
+      <button type="button" [disabled]="paymentBlocked() || loading() || saving()" (click)="openPayment()">Registrar adelanto o abono</button>
+    }
+  </section>
+  @if (previous().length) {
+    <div class="previous-payments">
+      @for (payment of previous(); track payment.id) {
+        <button type="button" (click)="showReceipt(payment)">
+          <span>{{ payment.receiptNumber }} · {{ payment.registeredAt | date: 'dd/MM/yyyy' }}</span>
+          <strong>{{ payment.amount | currency: 'PEN' : 'S/ ' : '1.2-2' }}</strong>
+          <span>Ver firma y constancia</span>
+        </button>
+      }
+    </div>
+  }
+}
+@if (mode()) {
+  <div class="agreement-scrim" (click)="close()"></div>
+  <section
+    appModal
+    [modalDismissDisabled]="saving()"
+    (modalDismiss)="close()"
+    class="agreement-dialog"
+    role="dialog"
+    aria-modal="true"
+    [attr.aria-label]="mode() === 'payment' ? 'Registrar adelanto firmado' : 'Constancia firmada'"
+  >
+    <header class="dialog-head">
+      <div>
+        <small>{{ mode() === 'payment' ? 'Acuerdo con el paciente' : 'Constancia de pago' }}</small>
+        <h2>{{ mode() === 'payment' ? 'Adelanto y firma' : 'Pago registrado' }}</h2>
+      </div>
+      <button type="button" (click)="close()" aria-label="Cerrar">×</button>
+    </header>
+    @if (error()) {
+      <div class="agreement-error" role="alert">
+        {{ error() }}
+        @if (mode() === 'payment') {
+          <button type="button" (click)="reload()">Actualizar datos</button>
+        }
+      </div>
+    }
+    @if (mode() === 'payment') {
+      @if (loading()) {
+        <p class="agreement-loading">Preparando el presupuesto...</p>
+      } @else if (!plan()) {
+        <div class="agreement-loading">
+          No se pudo cargar el presupuesto.
+          <button type="button" (click)="reload()">Reintentar</button>
+        </div>
+      } @else if (account()) {
+        <form [formGroup]="form" (ngSubmit)="save()">
+          <fieldset class="payment-fields" [disabled]="saving()">
+          <div class="agreement-summary">
+            <strong>{{ account()!.patientName }}</strong
+            ><span>{{ account()!.planCode }}</span>
+            <div>
+              <span>Total del plan</span
+              ><b>{{ account()!.totalAmount | currency: 'PEN' : 'S/ ' : '1.2-2' }}</b>
+            </div>
+            <div>
+              <span>Pagado antes</span
+              ><b>{{ account()!.paidAmount | currency: 'PEN' : 'S/ ' : '1.2-2' }}</b>
+            </div>
+            <div>
+              <span>Saldo actual</span
+              ><b>{{ account()!.balance | currency: 'PEN' : 'S/ ' : '1.2-2' }}</b>
+            </div>
+          </div>
+          <details>
+            <summary>Ver procedimientos del presupuesto</summary>
+            @for (item of plan()!.items; track item.id) {
+              <p>
+                {{ item.serviceName }}
+                @if (item.tooth) {
+                  · pieza {{ item.tooth }}
+                }
+                · {{ item.quantity }} × {{ item.unitPrice | currency: 'PEN' : 'S/ ' : '1.2-2' }}
+              </p>
+            }
+          </details>
+          <div class="agreement-inputs">
+            <label
+              >Monto que entrega hoy
+              <input type="number" min="0.01" step="0.01" formControlName="amount"
+            /></label>
+            <label
+              >Método de pago
+              <select formControlName="methodId">
+                @for (method of methods(); track method.id) {
+                  <option [ngValue]="method.id">{{ method.name }}</option>
+                }
+              </select></label
+            >
+            @if (needsReference()) {
+              <label
+                >Referencia de operación <input formControlName="reference" autocomplete="off"
+              /></label>
+            }
+          </div>
+          <div class="balance-preview">
+            <span>Saldo después de este pago</span
+            ><strong>{{ balanceAfter() | currency: 'PEN' : 'S/ ' : '1.2-2' }}</strong>
+          </div>
+          <p class="agreement-terms">
+            He revisado el presupuesto y confirmo el importe entregado como adelanto o abono. El
+            saldo indicado queda pendiente de pago.
+          </p>
+          <div class="signature-heading">
+            <strong>Firma del paciente</strong
+            ><button type="button" (click)="clearSignature()">Borrar firma</button>
+          </div>
+          <canvas
+            #signatureCanvas
+            width="800"
+            height="250"
+            aria-label="Área para firmar"
+            (pointerdown)="pointerDown($event)"
+            (pointermove)="pointerMove($event)"
+            (pointerup)="pointerUp()"
+            (pointercancel)="pointerUp()"
+          ></canvas>
+          <small class="signature-help"
+            >El paciente firma con el dedo, mouse o lápiz. Muéstrale el total, el adelanto y el
+            saldo antes de confirmar.</small
+          >
+          @if (!cash()) {
+            <div class="cash-opening">
+              <p>Abre la caja para registrar este adelanto sin salir de Atención.</p>
+              <label
+                >Fondo inicial en efectivo
+                <input type="number" min="0" step="0.01" [formControl]="openingAmount"
+              /></label>
+              <button type="button" (click)="openCash()" [disabled]="saving()">Abrir caja</button>
+            </div>
+          }
+          <button
+            class="confirm-payment"
+            type="submit"
+            [disabled]="saving() || loading() || paymentBlocked() || !cash() || !signed()"
+          >
+            {{ saving() ? 'Registrando...' : 'Registrar pago y guardar firma' }}
+          </button>
+          </fieldset>
+        </form>
+      }
+    } @else {
+      @if (receipt(); as document) {
+        <div class="agreement-print">
+          <header>
+            <small>Dental Americana · Constancia administrativa</small>
+            <h2>Acuerdo de pago y adelanto</h2>
+            <p>
+              N.º {{ document.payment.receiptNumber }} ·
+              {{ document.payment.registeredAt | date: 'dd/MM/yyyy, HH:mm' }}
+            </p>
+            @if (document.payment.status === 'ANULADO') {
+              <strong>Pago anulado</strong>
+              <p>{{ document.payment.voidReason }} · {{ document.payment.voidedAt | date:'dd/MM/yyyy, HH:mm' }} · Usuario #{{ document.payment.voidedBy }}</p>
+              <p>Los importes siguientes corresponden al momento del cobro original. Este pago ya no reduce el saldo actual.</p>
+            }
+          </header>
+          <div class="receipt-patient">
+            <strong>{{ document.agreement.patientName }}</strong
+            ><span
+              >Documento: {{ document.agreement.patientDocument || 'No registrado' }} · Plan
+              {{ document.agreement.planCode }}</span
+            >
+          </div>
+          <h3>Procedimientos del presupuesto</h3>
+          <div class="receipt-items">
+            @for (item of document.agreement.items; track $index) {
+              <div>
+                <span
+                  >{{ item.name }}
+                  @if (item.tooth) {
+                    · pieza {{ item.tooth }}
+                  }
+                  · {{ item.quantity }} ud.</span
+                ><strong>{{ item.subtotal | currency: 'PEN' : 'S/ ' : '1.2-2' }}</strong>
+              </div>
+            }
+          </div>
+          <div class="receipt-totals">
+            <div>
+              <span>Total acordado</span
+              ><strong>{{
+                document.agreement.planTotal | currency: 'PEN' : 'S/ ' : '1.2-2'
+              }}</strong>
+            </div>
+            <div>
+              <span>Pagado antes</span
+              ><strong>{{
+                document.agreement.paidBefore | currency: 'PEN' : 'S/ ' : '1.2-2'
+              }}</strong>
+            </div>
+            <div class="receipt-highlight">
+              <span>Pago recibido hoy</span
+              ><strong>{{
+                document.agreement.paymentAmount | currency: 'PEN' : 'S/ ' : '1.2-2'
+              }}</strong>
+            </div>
+            <div>
+              <span>Saldo pendiente</span
+              ><strong>{{
+                document.agreement.balanceAfter | currency: 'PEN' : 'S/ ' : '1.2-2'
+              }}</strong>
+            </div>
+          </div>
+          <p>
+            Método: {{ document.payment.paymentMethod }}
+            @if (document.payment.reference) {
+              · Referencia: {{ document.payment.reference }}
+            }
+          </p>
+          <p class="receipt-terms">{{ document.agreement.terms }}</p>
+          <div class="receipt-signature">
+            <img [src]="document.signatureData" alt="Firma del paciente guardada con este pago" />
+            <div class="signature-line">Firma del paciente</div>
+          </div>
+          <small
+            >Constancia administrativa del pago registrado. No sustituye el comprobante electrónico
+            tributario.</small
+          >
+        </div>
+        <div class="receipt-actions">
+          <button type="button" (click)="print()">Imprimir o guardar PDF</button
+          ><button type="button" (click)="close()">Cerrar</button>
+        </div>
+      } @else if (!error()) {
+        <p class="agreement-loading">Cargando constancia firmada...</p>
+      }
+    }
+  </section>
+}

@@ -1,0 +1,110 @@
+<section class="requests-page">
+  <header>
+    <div>
+      <a routerLink="/sistema/agenda"><svg lucideArrowLeft></svg>Agenda</a
+      ><small>Web y WhatsApp</small>
+      <h1>Solicitudes de cita</h1>
+      <p>
+        Recepción agenda el horario y el sistema vincula o crea el paciente con los datos recibidos.
+      </p>
+    </div>
+    <button (click)="load()">
+      <svg lucideRefreshCw [class.animate-spin]="loading()"></svg>Actualizar
+    </button>
+  </header>
+  @if (error()) {
+    <div class="message error"><svg lucideAlertTriangle></svg>{{ error() }}</div>
+  }
+  @if (success()) {
+    <div class="message success"><svg lucideCheck></svg>{{ success() }}</div>
+  }
+  <nav>
+    <button [class.active]="filter() === ''" (click)="setFilter('')">Todas</button>
+    @for (s of ['PENDIENTE', 'CONTACTADO', 'AGENDADO', 'DESCARTADO']; track s) {
+      <button [class.active]="filter() === s" (click)="setFilter(s)">{{ label(s) }}</button>
+    }
+  </nav>
+  @if (loading()) {
+    <div class="state">
+      <svg lucideLoaderCircle class="animate-spin"></svg>
+      <p>Cargando solicitudes...</p>
+    </div>
+  } @else {
+    <div class="request-grid">
+      @for (item of items(); track item.id) {
+        <article [attr.data-status]="item.status">
+          <header>
+            <span>{{ item.fullName.slice(0, 1) }}</span>
+            <div>
+              <strong>{{ item.fullName }}</strong
+              ><small
+                >Solicitud #{{ item.id }} · {{ item.createdAt | date: 'dd/MM/yyyy, HH:mm' }}</small
+              >
+            </div>
+            <i>{{ label(item.status) }}</i>
+          </header>
+          <dl>
+            <div>
+              <dt><svg lucidePhone></svg>Celular</dt>
+              <dd>
+                <a [href]="'tel:' + item.mobile">{{ item.mobile }}</a>
+              </dd>
+            </div>
+            @if (item.email) {
+              <div>
+                <dt><svg lucideMail></svg>Correo</dt>
+                <dd>{{ item.email }}</dd>
+              </div>
+            }
+            <div>
+              <dt><svg lucideCalendarCheck></svg>Preferencia</dt>
+              <dd>
+                {{ item.preferredDate ? (item.preferredDate | date: 'dd/MM/yyyy') : 'Sin fecha' }} ·
+                {{ label(item.preferredShift) }}
+              </dd>
+            </div>
+            <div>
+              <dt><svg lucideMessageSquare></svg>Servicio</dt>
+              <dd>{{ item.service }}</dd>
+            </div>
+          </dl>
+          @if (item.message) {
+            <blockquote>“{{ item.message }}”</blockquote>
+          }
+          @if (item.internalObservation) {
+            <p class="internal">{{ item.internalObservation }}</p>
+          }
+          @if (item.status === 'PENDIENTE') {
+            <footer>
+              <button [disabled]="saving()" (click)="manage(item, 'DESCARTADO')">
+                <svg lucideTrash2></svg>Descartar</button
+              ><button class="contacted" [disabled]="saving()" (click)="manage(item, 'CONTACTADO')">
+                <svg lucidePhone></svg>Registrar contacto
+              </button>
+              <button class="scheduled" [disabled]="saving()" (click)="schedule(item)">
+                <svg lucideUserCheck></svg>Agendar cita
+              </button>
+            </footer>
+          }
+          @if (item.status === 'CONTACTADO') {
+            <footer>
+              <button class="scheduled" [disabled]="saving()" (click)="schedule(item)">
+                <svg lucideUserCheck></svg>Agendar cita
+              </button>
+            </footer>
+          }
+          @if (item.status === 'AGENDADO') {
+            <p class="appointment">
+              <svg lucideCheck></svg>Cita vinculada #{{ item.appointmentId }}
+            </p>
+          }
+        </article>
+      } @empty {
+        <div class="empty">
+          <svg lucideClock3></svg>
+          <p>No existen solicitudes con este filtro.</p>
+        </div>
+      }
+    </div>
+  }
+</section>

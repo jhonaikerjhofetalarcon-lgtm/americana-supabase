@@ -1,0 +1,47 @@
+<section class="patients-page">
+  <header class="page-title">
+    <div><p>Registro maestro</p><h1>Pacientes</h1><span>Busca, registra y revisa la información antes de iniciar una atención.</span></div>
+    @if (canWrite()) { <a routerLink="nuevo" class="primary-action focus-ring"><svg lucidePlus></svg>Nuevo paciente</a> }
+  </header>
+
+  <section class="search-card">
+    <label class="patient-search"><svg lucideSearch></svg><input #search type="search" [value]="query()" (input)="updateSearch(search.value)" placeholder="Nombre, DNI, historia clínica o celular" aria-label="Buscar pacientes"></label>
+    <button class="filter-button focus-ring" [class.active]="filtersOpen()" (click)="filtersOpen.set(!filtersOpen())"><svg lucideSlidersHorizontal></svg>Filtros</button>
+    @if (filtersOpen()) {
+      <div class="filters">
+        <label>Estado<select #activeSelect [value]="active()"><option value="all">Todos</option><option value="true">Activos</option><option value="false">Inactivos</option></select></label>
+        <label>Sexo<select #sexSelect [value]="sex()"><option value="">Todos</option><option value="FEMENINO">Femenino</option><option value="MASCULINO">Masculino</option><option value="OTRO">Otro</option><option value="NO_ESPECIFICA">No especifica</option></select></label>
+        <label>Edad mínima<input #minInput type="number" min="0" max="120" [value]="minAge() ?? ''"></label>
+        <label>Edad máxima<input #maxInput type="number" min="0" max="120" [value]="maxAge() ?? ''"></label>
+        <button class="apply focus-ring" (click)="applyFilters(activeSelect.value, sexSelect.value, minInput.value, maxInput.value)"><svg lucideFilter></svg>Aplicar</button>
+        <button class="reset focus-ring" (click)="reset()"><svg lucideRotateCcw></svg>Limpiar</button>
+      </div>
+    }
+  </section>
+
+  <section class="result-card">
+    <header><div><h2>Directorio de pacientes</h2><p>@if(result()){ {{result()!.totalElements}} registros encontrados }</p></div><span class="privacy-note">Información protegida</span></header>
+    @if (loading()) {
+      <div class="skeleton-list" aria-label="Cargando pacientes">@for (item of [1,2,3,4,5]; track item) { <div><i></i><span></span><span></span><span></span></div> }</div>
+    } @else if (error()) {
+      <div class="state error"><svg lucideAlertTriangle></svg><h3>No se pudo completar la consulta</h3><p>{{error()}}</p><button (click)="load()">Reintentar</button></div>
+    } @else if (!result()?.content?.length) {
+      <div class="state"><svg lucideFileSearch></svg><h3>No encontramos pacientes</h3><p>Modifica los filtros o registra una nueva ficha.</p>@if(canWrite()){<a routerLink="nuevo">Registrar paciente</a>}</div>
+    } @else {
+      <div class="patient-table">
+        <div class="table-head"><span>Paciente</span><span>Documento</span><span>Contacto</span><span>Alertas</span><span>Registro</span><span></span></div>
+        @for (patient of result()!.content; track patient.id) {
+          <a class="patient-row focus-ring" [routerLink]="[patient.id]">
+            <span class="patient-cell"><i>{{initials(patient.fullName)}}</i><span><strong>{{patient.fullName}}</strong><small>{{patient.historyNumber}} · {{patient.age}} años</small></span></span>
+            <span data-label="Documento"><strong>{{patient.documentNumber || 'Sin documento'}}</strong><small>{{patient.documentType.replaceAll('_', ' ')}}</small></span>
+            <span data-label="Contacto"><strong>{{patient.mobile || 'No registrado'}}</strong><small>{{patient.email || 'Sin correo'}}</small></span>
+            <span data-label="Alertas">@if(patient.activeAllergies){<b class="allergy"><svg lucideAlertTriangle></svg>{{patient.activeAllergies}} alergia(s)</b>}@else{<b class="clear">Sin alertas</b>}</span>
+            <span data-label="Registro"><strong>{{patient.createdAt | date:'dd/MM/yyyy'}}</strong><small [class.inactive]="!patient.active">{{patient.active ? 'Activo' : 'Inactivo'}}</small></span>
+            <svg lucideChevronRight class="open-icon"></svg>
+          </a>
+        }
+      </div>
+      <footer class="pagination"><span>Página {{result()!.page + 1}} de {{result()!.totalPages || 1}}</span><div><button class="focus-ring" [disabled]="result()!.first" (click)="goTo(page()-1)"><svg lucideChevronLeft></svg></button><button class="focus-ring" [disabled]="result()!.last" (click)="goTo(page()+1)"><svg lucideChevronRight></svg></button></div></footer>
+    }
+  </section>
+</section>

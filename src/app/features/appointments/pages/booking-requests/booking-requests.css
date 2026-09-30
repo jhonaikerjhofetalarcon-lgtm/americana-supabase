@@ -1,0 +1,295 @@
+:host {
+  display: block;
+  color: #1b3a51;
+}
+.requests-page {
+  max-width: 1300px;
+  margin: auto;
+  padding: 25px 28px 100px;
+}
+.requests-page > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.requests-page > header a {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 8px;
+  color: #567286;
+  text-decoration: none;
+  font-size: 0.56rem;
+  font-weight: 800;
+}
+.requests-page > header a svg {
+  width: 14px;
+}
+.requests-page > header small {
+  color: #187b90;
+  font-size: 0.57rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+.requests-page h1 {
+  margin: 4px 0;
+  font-size: 1.65rem;
+}
+.requests-page header p {
+  margin: 0;
+  color: #7d909d;
+  font-size: 0.67rem;
+}
+.requests-page > header > button {
+  display: flex;
+  min-height: 39px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 11px;
+  border: 1px solid #d3e0e6;
+  border-radius: 9px;
+  color: #5a7384;
+  background: #fff;
+  font-size: 0.58rem;
+  font-weight: 800;
+}
+.requests-page > header button svg {
+  width: 15px;
+}
+.message {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 12px;
+  padding: 10px;
+  border-radius: 9px;
+  font-size: 0.63rem;
+}
+.message svg {
+  width: 15px;
+}
+.message.error {
+  color: #9d4149;
+  background: #fff0f2;
+}
+.message.success {
+  color: #1f7054;
+  background: #e8f6ef;
+}
+.requests-page > nav {
+  display: flex;
+  gap: 4px;
+  margin: 15px 0 11px;
+  padding: 4px;
+  border: 1px solid #dce6eb;
+  border-radius: 11px;
+  background: #f1f5f7;
+}
+.requests-page > nav button {
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  color: #718593;
+  background: transparent;
+  font-size: 0.55rem;
+  font-weight: 800;
+  text-transform: capitalize;
+}
+.requests-page > nav button.active {
+  color: #167185;
+  background: #fff;
+  box-shadow: 0 3px 8px #18384e14;
+}
+.request-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 9px;
+}
+.request-grid article {
+  padding: 13px;
+  border: 1px solid #dce6ec;
+  border-radius: 12px;
+  background: #fff;
+}
+.request-grid article > header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.request-grid article header > span {
+  display: grid;
+  width: 35px;
+  height: 35px;
+  place-items: center;
+  border-radius: 10px;
+  color: #fff;
+  background: #3f8796;
+  font-size: 0.66rem;
+  font-weight: 900;
+}
+.request-grid article header > div {
+  flex: 1;
+}
+.request-grid strong,
+.request-grid small {
+  display: block;
+}
+.request-grid header strong {
+  font-size: 0.66rem;
+}
+.request-grid header small {
+  margin-top: 3px;
+  color: #8696a2;
+  font-size: 0.5rem;
+}
+.request-grid header i {
+  padding: 4px 7px;
+  border-radius: 9px;
+  color: #876118;
+  background: #fff2d6;
+  font-size: 0.49rem;
+  font-style: normal;
+  text-transform: capitalize;
+}
+.request-grid article[data-status='CONTACTADO'] header i {
+  color: #176d82;
+  background: #e4f3f6;
+}
+.request-grid article[data-status='AGENDADO'] header i {
+  color: #267055;
+  background: #e7f5ed;
+}
+.request-grid article[data-status='DESCARTADO'] {
+  opacity: 0.65;
+}
+.request-grid article[data-status='DESCARTADO'] header i {
+  color: #93434b;
+  background: #f9e9eb;
+}
+.request-grid dl {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 11px 0;
+}
+.request-grid dl div {
+  padding: 8px;
+  border-radius: 9px;
+  background: #f6f9fa;
+}
+.request-grid dt {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #81929e;
+  font-size: 0.48rem;
+}
+.request-grid dt svg {
+  width: 12px;
+}
+.request-grid dd {
+  margin: 4px 0 0;
+  font-size: 0.57rem;
+  font-weight: 750;
+}
+.request-grid a {
+  color: #176f83;
+}
+.request-grid blockquote {
+  margin: 8px 0;
+  padding: 9px;
+  border-left: 3px solid #9cc8d0;
+  color: #567083;
+  background: #f5f9fa;
+  font-size: 0.57rem;
+  line-height: 1.5;
+}
+.internal {
+  color: #785c8d;
+  font-size: 0.53rem;
+}
+.request-grid footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 9px;
+}
+.request-grid footer button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 8px;
+  color: #97424b;
+  background: #fff0f2;
+  font-size: 0.52rem;
+  font-weight: 800;
+}
+.request-grid footer button svg {
+  width: 13px;
+}
+.request-grid footer .contacted {
+  color: #fff;
+  background: #177386;
+}
+.request-grid footer .scheduled {
+  color: #fff;
+  background: #197153;
+}
+.appointment {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #257052;
+  font-size: 0.56rem;
+  font-weight: 800;
+}
+.appointment svg {
+  width: 14px;
+}
+.state,
+.empty {
+  display: grid;
+  min-height: 280px;
+  place-items: center;
+  align-content: center;
+  color: #81939f;
+  text-align: center;
+}
+.state svg,
+.empty svg {
+  width: 26px;
+}
+.state p,
+.empty p {
+  font-size: 0.58rem;
+}
+.empty {
+  grid-column: 1/-1;
+}
+@media (max-width: 760px) {
+  .requests-page {
+    padding: 18px 11px 95px;
+  }
+  .requests-page > header p {
+    display: none;
+  }
+  .request-grid {
+    grid-template-columns: 1fr;
+  }
+  .requests-page > nav {
+    overflow: auto;
+  }
+}
+@media (max-width: 460px) {
+  .requests-page > header > button {
+    width: 39px;
+    padding: 0;
+    justify-content: center;
+    font-size: 0;
+  }
+  .request-grid dl {
+    grid-template-columns: 1fr;
+  }
+}

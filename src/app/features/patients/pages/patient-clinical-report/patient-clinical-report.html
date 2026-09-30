@@ -1,0 +1,420 @@
+<div class="report-toolbar no-print">
+  <a [routerLink]="['/sistema/pacientes', patientId]">← Volver a la ficha</a>
+  <div>
+    <button (click)="load()" [disabled]="loading()">Actualizar</button>
+    <button class="primary" (click)="print()" [disabled]="loading() || !report() || !!error()">
+      Imprimir / Guardar PDF
+    </button>
+  </div>
+</div>
+@if (loading()) {
+  <p role="status">Preparando historia clínica completa…</p>
+}
+@if (error()) {
+  <p class="notice error" role="alert">{{ error() }} No se puede imprimir un informe incompleto.</p>
+}
+@if (report(); as r) {
+  <p class="print-help no-print">
+    Para descargar el documento, pulsa «Imprimir / Guardar PDF» y elige «Guardar como PDF» como
+    destino. Revisa la vista previa antes de entregarlo.
+  </p>
+  <article class="clinical-report">
+    <header class="report-header">
+      <div>
+        <img
+          src="/brand/dental-americana-logo.svg"
+          alt="Dental Americana"
+          width="48"
+          height="48"
+        /><strong>Dental Americana</strong>
+      </div>
+      <span>Copia de información clínica</span>
+      <h1>Historia clínica del paciente</h1>
+      <p>
+        Historia {{ r.patient.historyNumber }} · Emitida
+        {{ r.generatedAt | date: 'dd/MM/yyyy HH:mm' : '-0500' }} (Perú)
+      </p>
+    </header>
+    <section>
+      <h2>Identificación del paciente</h2>
+      <h3>
+        {{ r.patient.firstNames }} {{ r.patient.paternalSurname }} {{ r.patient.maternalSurname }}
+      </h3>
+      <dl class="details">
+        <div>
+          <dt>Documento</dt>
+          <dd>{{ r.patient.documentType.replaceAll('_', ' ') }} {{ r.patient.documentNumber }}</dd>
+        </div>
+        <div>
+          <dt>Nacimiento</dt>
+          <dd>
+            {{ r.patient.birthDate | date: 'dd/MM/yyyy' : 'UTC' }} · {{ r.patient.age }} años al
+            emitir
+          </dd>
+        </div>
+        <div>
+          <dt>Sexo</dt>
+          <dd>{{ r.patient.sex.replaceAll('_', ' ') }}</dd>
+        </div>
+        <div>
+          <dt>Celular / teléfono</dt>
+          <dd>{{ r.patient.mobile || r.patient.phone || 'No registrado' }}</dd>
+        </div>
+        <div>
+          <dt>Correo</dt>
+          <dd>{{ r.patient.email || 'No registrado' }}</dd>
+        </div>
+        <div>
+          <dt>Domicilio</dt>
+          <dd>{{ r.patient.address || 'No registrado' }}</dd>
+        </div>
+        @if (r.patient.responsibleName) {
+          <div>
+            <dt>Responsable</dt>
+            <dd>
+              {{ r.patient.responsibleName }} · {{ r.patient.responsibleRelationship }} ·
+              {{ r.patient.responsiblePhone }}
+            </dd>
+          </div>
+        }
+      </dl>
+      @for (contact of r.patient.emergencyContacts; track contact.id) {
+        <p>
+          Contacto de emergencia: {{ contact.fullName }} · {{ contact.relationship }} ·
+          {{ contact.phone }}
+        </p>
+      }
+      <p class="scope">
+        Contiene {{ r.encounters.length }} atenciones finalizadas y
+        {{ r.odontograms.length }} odontogramas aprobados de esas atenciones, en orden cronológico.
+        @if (r.excludedEncounters) {
+          Hay {{ r.excludedEncounters }} atenciones en borrador o anuladas excluidas de esta copia.
+        }
+        Los antecedentes y medicamentos corresponden a la ficha actual. Los planes muestran su
+        estado registrado y excluyen borradores.
+      </p>
+    </section>
+    <section>
+      <h2>Antecedentes</h2>
+      @for (history of r.patient.histories; track history.id) {
+        <div class="entry">
+          <strong>{{ history.type }} · {{ history.status }}</strong>
+          <p>{{ history.description }}</p>
+          @if (history.observation) {
+            <p>{{ history.observation }}</p>
+          }
+          <small
+            >Fecha informada:
+            {{
+              history.reportedDate
+                ? (history.reportedDate | date: 'dd/MM/yyyy' : 'UTC')
+                : 'No registrada'
+            }}</small
+          >
+        </div>
+      } @empty {
+        <p>No hay antecedentes registrados.</p>
+      }
+    </section>
+    <section>
+      <h2>Alergias</h2>
+      @for (allergy of r.patient.allergies; track allergy.id) {
+        <div class="entry" [class.allergy]="allergy.status === 'ACTIVA'">
+          <strong>{{ allergy.substance }} · {{ allergy.severity }} · {{ allergy.status }}</strong>
+          <p>Reacción: {{ allergy.reaction || 'No registrada' }}</p>
+          @if (allergy.observation) {
+            <p>{{ allergy.observation }}</p>
+          }
+        </div>
+      } @empty {
+        <p>No hay alergias registradas; esto no equivale a ausencia confirmada de alergias.</p>
+      }
+    </section>
+    <section>
+      <h2>Medicación informada</h2>
+      @for (medication of r.patient.medications; track medication.id) {
+        <div class="entry">
+          <strong
+            >{{ medication.medication }} ·
+            {{ medication.current ? 'Vigente' : 'No vigente' }}</strong
+          >
+          <p>
+            Dosis: {{ medication.dose || 'No registrada' }} · Frecuencia:
+            {{ medication.frequency || 'No registrada' }}
+          </p>
+          <p>Motivo: {{ medication.reason || 'No registrado' }}</p>
+          <small
+            >{{
+              medication.startDate
+                ? (medication.startDate | date: 'dd/MM/yyyy' : 'UTC')
+                : 'Inicio no registrado'
+            }}
+            —
+            {{
+              medication.endDate
+                ? (medication.endDate | date: 'dd/MM/yyyy' : 'UTC')
+                : 'Fin no registrado'
+            }}</small
+          >
+        </div>
+      } @empty {
+        <p>No hay medicamentos registrados.</p>
+      }
+    </section>
+    <section>
+      <h2>Atenciones clínicas finalizadas</h2>
+      @for (encounter of r.encounters; track encounter.id) {
+        <article class="encounter">
+          <h3>
+            {{ encounter.encounterDate | date: 'dd/MM/yyyy HH:mm' : '-0500' }} · Atención #{{
+              encounter.id
+            }}
+          </h3>
+          <p>
+            Odontólogo: <strong>{{ encounter.dentistName }}</strong> · Versión
+            {{ encounter.version }}
+          </p>
+          <p>Aprobada: {{ encounter.approvedAt | date: 'dd/MM/yyyy HH:mm' : '-0500' }}</p>
+          <a
+            class="no-print"
+            routerLink="/sistema/atencion"
+            [queryParams]="{ encounterId: encounter.id }"
+            >Ver atención en el sistema</a
+          >
+          <dl class="clinical-fields">
+            @for (field of clinicalFields; track field.key) {
+              <div>
+                <dt>{{ field.label }}</dt>
+                <dd>{{ encounter[field.key] || 'No registrado' }}</dd>
+              </div>
+            }
+          </dl>
+          <h4>Funciones vitales registradas</h4>
+          <dl class="details">
+            <div>
+              <dt>Presión arterial</dt>
+              <dd>
+                {{ encounter.systolicPressure ?? '—' }}/{{
+                  encounter.diastolicPressure ?? '—'
+                }}
+                mmHg
+              </dd>
+            </div>
+            <div>
+              <dt>Pulso</dt>
+              <dd>{{ encounter.pulse ?? '—' }} lpm</dd>
+            </div>
+            <div>
+              <dt>Temperatura</dt>
+              <dd>{{ encounter.temperature ?? '—' }} °C</dd>
+            </div>
+            <div>
+              <dt>Frecuencia respiratoria</dt>
+              <dd>{{ encounter.respiratoryRate ?? '—' }} rpm</dd>
+            </div>
+            <div>
+              <dt>Peso / talla</dt>
+              <dd>{{ encounter.weightKg ?? '—' }} kg / {{ encounter.heightCm ?? '—' }} cm</dd>
+            </div>
+            <div>
+              <dt>Próximo control</dt>
+              <dd>
+                {{
+                  encounter.nextControlDate
+                    ? (encounter.nextControlDate | date: 'dd/MM/yyyy' : 'UTC')
+                    : 'No registrado'
+                }}
+              </dd>
+            </div>
+            <div>
+              <dt>Alta</dt>
+              <dd>{{ encounter.discharged ? 'Sí' : 'No' }}</dd>
+            </div>
+            <div>
+              <dt>Conformidad del paciente registrada</dt>
+              <dd>{{ encounter.patientConsent ? 'Sí' : 'No' }}</dd>
+            </div>
+          </dl>
+          @for (odontogram of odontograms(encounter.id); track odontogram.id) {
+            <div class="odontogram">
+              <h4>Odontograma {{ odontogram.dentitionType.toLowerCase() }} #{{ odontogram.id }}</h4>
+              <p>
+                Aprobado {{ odontogram.approvedAt | date: 'dd/MM/yyyy HH:mm' : '-0500' }} · Versión
+                {{ odontogram.version }}
+              </p>
+              <div class="dental-chart" aria-label="Odontograma de lectura">
+                @for (arch of teeth(odontogram.dentitionType); track $index) {
+                  <div class="arch" [style.--teeth]="arch.length">
+                    @for (tooth of arch; track tooth) {
+                      <div class="tooth">
+                        <strong>{{ tooth }}</strong
+                        ><app-tooth-surface-map
+                          [tooth]="tooth"
+                          [findings]="odontogram.findings"
+                          [disabled]="true"
+                        />
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+              <p class="scope">
+                La tabla describe los hallazgos registrados. Las piezas sin marcas no implican
+                ausencia confirmada de enfermedad.
+              </p>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Pieza</th>
+                    <th>Superficie</th>
+                    <th>Hallazgo</th>
+                    <th>Estado / observación</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (finding of odontogram.findings; track finding.id) {
+                    <tr>
+                      <td>{{ finding.tooth }}</td>
+                      <td>{{ surface(finding) }}</td>
+                      <td>{{ condition(finding) }}</td>
+                      <td>{{ finding.treatmentState }}<br />{{ finding.observation }}</td>
+                    </tr>
+                  } @empty {
+                    <tr>
+                      <td colspan="4">Sin hallazgos registrados.</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+              @if (odontogram.generalObservation) {
+                <p class="long-text">{{ odontogram.generalObservation }}</p>
+              }
+            </div>
+          } @empty {
+            <p>No hay odontogramas aprobados vinculados a esta atención.</p>
+          }
+        </article>
+      } @empty {
+        <p>No hay atenciones finalizadas para este paciente.</p>
+      }
+    </section>
+    <section>
+      <h2>Tratamientos y evolución</h2>
+      @if (!r.treatmentsIncluded) {
+        <p class="notice">
+          Sección no incluida: tu usuario no tiene permiso para consultar tratamientos.
+        </p>
+      } @else {
+        @for (plan of r.plans; track plan.id) {
+          <div class="plan">
+            <h3>{{ plan.code }} · {{ plan.status.replaceAll('_', ' ') }}</h3>
+            <p>
+              Creado {{ plan.createdAt | date: 'dd/MM/yyyy' : '-0500' }} · Aceptación del paciente:
+              {{ plan.patientAccepted ? 'Registrada' : 'No registrada' }}
+            </p>
+            @if (plan.observations) {
+              <p class="long-text">{{ plan.observations }}</p>
+            }
+            @for (item of plan.items; track item.id) {
+              <div class="entry">
+                <h4>
+                  {{ item.serviceName }} ·
+                  {{ item.tooth ? 'Pieza ' + item.tooth : 'Sin pieza específica' }} ·
+                  {{ item.status.replaceAll('_', ' ') }}
+                </h4>
+                <p>{{ item.description }} · Sesiones previstas: {{ item.sessions }}</p>
+                @for (evolution of item.evolutions; track evolution.id) {
+                  <div class="evolution">
+                    <strong>{{ evolution.date | date: 'dd/MM/yyyy HH:mm' : '-0500' }}</strong>
+                    <p class="long-text">{{ evolution.procedure }}</p>
+                    <p class="long-text">{{ evolution.observations }}</p>
+                    @if (evolution.nextSession) {
+                      <p>Próxima sesión: {{ evolution.nextSession }}</p>
+                    }
+                    <small
+                      >Profesional aprobador #{{ evolution.approvedBy }} · Atención
+                      {{ evolution.encounterId || 'No vinculada' }}</small
+                    >
+                  </div>
+                } @empty {
+                  <p>Sin evoluciones registradas para este procedimiento.</p>
+                }
+              </div>
+            }
+            <p>
+              Presupuesto del plan: {{ plan.total | currency: 'PEN' : 'S/ ' }}. Este importe no
+              acredita pagos.
+            </p>
+          </div>
+        } @empty {
+          <p>No hay planes de tratamiento fuera de borrador.</p>
+        }
+      }
+    </section>
+    <section>
+      <h2>Registro de citas</h2>
+      @if (!r.appointmentsIncluded) {
+        <p class="notice">
+          Sección no incluida: tu usuario no tiene permiso para consultar la agenda.
+        </p>
+      } @else {
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha (Perú)</th>
+              <th>Odontólogo</th>
+              <th>Motivo</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (appointment of r.appointments; track appointment.id) {
+              <tr>
+                <td>{{ appointment.start | date: 'dd/MM/yyyy HH:mm' : '-0500' }}</td>
+                <td>{{ appointment.professionalName }}</td>
+                <td>{{ appointment.reason }}</td>
+                <td>{{ appointment.status.replaceAll('_', ' ') }}</td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="4">Sin citas registradas.</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </section>
+    <section>
+      <h2>Relación de archivos adjuntos</h2>
+      <p>
+        Los originales se entregan por separado. Esta copia incluye su relación; no incorpora el
+        contenido de los PDF, fotografías o radiografías.
+      </p>
+      @if (downloadError()) {
+        <p role="alert" class="notice error no-print">{{ downloadError() }}</p>
+      }
+      @for (file of r.patient.files; track file.id) {
+        <div class="entry file">
+          <div>
+            <strong>{{ file.originalName }}</strong>
+            <p>
+              {{ file.category.replaceAll('_', ' ') }} ·
+              {{ file.createdAt | date: 'dd/MM/yyyy' : '-0500' }}
+            </p>
+            <p>{{ file.description }}</p>
+          </div>
+          <button class="no-print" (click)="download(file)" [disabled]="downloadingId() !== null">
+            {{ downloadingId() === file.id ? 'Descargando…' : 'Descargar original' }}
+          </button>
+        </div>
+      } @empty {
+        <p>No hay archivos registrados.</p>
+      }
+    </section>
+    <footer>
+      Dental Americana · Historia {{ r.patient.historyNumber }} · Copia emitida
+      {{ r.generatedAt | date: 'dd/MM/yyyy HH:mm' : '-0500' }}.<br />Las aprobaciones indicadas
+      corresponden al registro del sistema; esta copia no incorpora una firma digital.
+    </footer>
+  </article>
+}

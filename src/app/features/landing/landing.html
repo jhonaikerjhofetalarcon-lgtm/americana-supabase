@@ -1,0 +1,201 @@
+<div class="landing">
+  <a class="skip-link" href="#contenido">Ir al contenido</a>
+  <header class="public-header">
+    <a class="brand focus-ring" href="#inicio" aria-label="Dental Americana, volver al inicio">
+      <img class="brand-mark" src="brand/dental-americana-logo.svg" alt="" />
+      <span class="brand-name"><strong>Dental Americana</strong><small>Consultorio odontológico</small></span>
+    </a>
+    <nav class="desktop-nav" aria-label="Navegación principal">
+      <a href="#servicios">Servicios</a>
+      <a href="#consultorio">El consultorio</a>
+      <a href="#como-reservar">Cómo reservar</a>
+      <a href="#contacto">Ubicación y contacto</a>
+    </nav>
+    <div class="header-actions">
+      <a class="staff-access focus-ring" routerLink="/sistema">Acceso al sistema</a>
+      <a class="header-book focus-ring" href="#reserva">Solicitar cita <svg lucideArrowRight></svg></a>
+    </div>
+  </header>
+
+  <main id="contenido">
+    <section class="hero" id="inicio" aria-labelledby="hero-title">
+      <div class="hero-inner">
+        <div class="hero-copy">
+          <span class="eyebrow"><svg lucideMapPin></svg> Dental Americana · Ayacucho</span>
+          <h1 id="hero-title">Sonrisas que<br />transforman <span>vidas.</span></h1>
+          <p>Tu salud bucal, nuestra prioridad. Te escuchamos, resolvemos tus dudas y te acompañamos en cada paso de tu atención.</p>
+          <div class="hero-actions">
+            <a class="primary-action focus-ring" href="#reserva"><svg lucideCalendarCheck></svg> Solicitar una cita</a>
+            <a class="secondary-action focus-ring" href="https://wa.me/51940577075" target="_blank" rel="noopener noreferrer"><svg lucidePhone></svg> Hablar por WhatsApp</a>
+          </div>
+          <p class="hero-note"><svg lucideShieldCheck></svg> Recepción revisará tu solicitud y confirmará el horario contigo.</p>
+        </div>
+        <div class="hero-visual">
+          <img
+            class="hero-photo"
+            src="images/atencion-dental-americana.webp"
+            alt="Odontólogo realizando una atención a una paciente en Dental Americana"
+            width="960"
+            height="1200"
+            fetchpriority="high"
+          />
+          <div class="visual-label"><span class="visual-label-icon"><svg lucideCheck></svg></span><span><strong>Atención a tu medida</strong><small>Comienza con una evaluación</small></span></div>
+          <div class="visual-decoration"><svg lucideSparkles></svg> Cuidamos tu sonrisa</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="value-strip" aria-label="Nuestra forma de atender">
+      <div><span><svg lucideStethoscope></svg></span><p><strong>Evaluación personalizada</strong><small>Escuchamos lo que necesitas</small></p></div>
+      <div><span><svg lucideCalendarCheck></svg></span><p><strong>Solicitud sencilla</strong><small>En línea o por WhatsApp</small></p></div>
+      <div><span><svg lucideShieldCheck></svg></span><p><strong>Horario confirmado</strong><small>Recepción coordina contigo</small></p></div>
+    </div>
+
+    <section class="real-care section-wrap" id="consultorio" aria-labelledby="real-care-title">
+      <div class="section-heading">
+        <span class="section-kicker">Dental Americana</span>
+        <h2 id="real-care-title">Siéntete en confianza.<br />Estás en buenas manos.</h2>
+        <p>Atención cercana, equipamiento odontológico y un espacio preparado para recibir a niños, adultos y familias.</p>
+      </div>
+      <div class="real-care-grid">
+        <article class="care-card care-card-featured">
+          <img src="images/familia-dental-americana.webp" alt="Familia durante una evaluación odontológica" loading="lazy" width="960" height="1200" />
+          <div><span>Atención familiar</span><h3>Explicamos cada paso con claridad</h3><p>Una evaluación que ayuda a decidir con tranquilidad.</p></div>
+        </article>
+        <article class="care-card">
+          <img src="images/consultorio-dental-americana.jpg" alt="Sillón y equipos del consultorio Dental Americana" loading="lazy" width="2048" height="1536" />
+          <div><span>Instalaciones</span><h3>Espacio clínico equipado</h3></div>
+        </article>
+        <article class="care-card">
+          <img src="images/fachada-dental-americana.jpg" alt="Fachada del Consultorio Dental Americana" loading="lazy" width="1536" height="2048" />
+          <div><span>Ubicación</span><h3>Te esperamos en Ayacucho</h3></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="services section-wrap" id="servicios" aria-labelledby="services-title">
+      <div class="section-heading">
+        <span class="section-kicker">Nuestros servicios</span>
+        <h2 id="services-title">Cuidado para cada etapa de tu sonrisa</h2>
+        <p>Conoce las opciones de atención y selecciona el servicio que te interesa. El odontólogo te orientará durante la evaluación.</p>
+      </div>
+      <div class="service-grid">
+        @for (service of services; track service.value; let index = $index) {
+          <article class="service-card">
+            <div class="service-card-top"><span class="service-number"><svg lucideStethoscope></svg></span><span class="service-category">{{ service.category }}</span><span class="service-index">0{{ index + 1 }}</span></div>
+            <h3>{{ service.title }}</h3>
+            <p>{{ service.description }}</p>
+            <a class="service-link focus-ring" href="#reserva" (click)="selectService(service.value)">Solicitar este servicio <svg lucideArrowRight></svg></a>
+          </article>
+        }
+      </div>
+    </section>
+
+    <section class="how-section" id="como-reservar" aria-labelledby="how-title">
+      <div class="section-wrap how-inner">
+        <div class="section-heading">
+          <span class="section-kicker">Así de fácil</span>
+          <h2 id="how-title">Tres pasos para coordinar tu cita</h2>
+          <p>Nosotros te ayudamos a encontrar un horario disponible.</p>
+        </div>
+        <div class="steps-grid">
+          <article><span class="step-number">01</span><span class="step-icon"><svg lucideCalendarCheck></svg></span><h3>Envía tu solicitud</h3><p>Indica tus datos, el servicio y la fecha que prefieres.</p></article>
+          <article><span class="step-number">02</span><span class="step-icon"><svg lucidePhone></svg></span><h3>Te contactamos</h3><p>Recepción revisa la disponibilidad y coordina contigo.</p></article>
+          <article><span class="step-number">03</span><span class="step-icon"><svg lucideCheck></svg></span><h3>Confirma tu visita</h3><p>Tu cita queda agendada cuando recepción confirma el horario.</p></article>
+        </div>
+        <p class="how-note"><svg lucideShieldCheck></svg> Enviar el formulario crea una solicitud; todavía no reserva un horario.</p>
+      </div>
+    </section>
+
+    <section class="booking-section section-wrap" id="reserva" aria-labelledby="booking-title">
+      <div class="booking-intro">
+        <span class="section-kicker">Solicitud en línea</span>
+        <h2 id="booking-title">Demos el primer paso hacia tu próxima cita</h2>
+        <p>Completa lo esencial y cuéntanos qué día prefieres. Recepción verificará la agenda antes de confirmar tu cita.</p>
+        <div class="booking-points">
+          <div><span><svg lucideCheck></svg></span><p><strong>Sin elegir un horario fijo</strong><small>La fecha y el turno son una preferencia.</small></p></div>
+          <div><span><svg lucidePhone></svg></span><p><strong>Nos comunicamos contigo</strong><small>Usaremos el número que nos proporciones.</small></p></div>
+        </div>
+      </div>
+
+      <form class="booking-form" [formGroup]="booking" (ngSubmit)="submit()" novalidate>
+        @if (sent()) {
+          <div class="booking-success" role="status" aria-live="polite">
+            <span class="success-icon"><svg lucideCheck></svg></span>
+            <span class="section-kicker">Solicitud enviada</span>
+            <h3>¡Recibimos tus datos!</h3>
+            @if (requestId()) { <p class="request-code">Número de solicitud <strong>#{{ requestId() }}</strong></p> }
+            <p>Recepción revisará la disponibilidad y se comunicará contigo. Tu cita aún no está confirmada.</p>
+            <div class="success-actions">
+              <a [href]="whatsappFollowUpLink()" target="_blank" rel="noopener noreferrer">Consultar por WhatsApp <svg lucideArrowRight></svg></a>
+              <button type="button" (click)="sent.set(false); requestId.set(null)">Enviar otra solicitud</button>
+            </div>
+          </div>
+        } @else {
+          <div class="form-heading"><span>Formulario de cita</span><h3>Cuéntanos cómo ayudarte</h3><p>Los campos marcados con * son obligatorios.</p></div>
+          <div class="form-row">
+            <label>Nombre completo *
+              <input formControlName="fullName" autocomplete="name" placeholder="Nombre y apellidos" required [attr.aria-invalid]="booking.controls.fullName.touched && booking.controls.fullName.invalid" />
+              @if (booking.controls.fullName.touched && booking.controls.fullName.invalid) { <small class="field-error">Ingresa tu nombre completo.</small> }
+            </label>
+            <label>Celular / WhatsApp *
+              <input formControlName="mobile" type="tel" inputmode="tel" autocomplete="tel" placeholder="999 999 999" required [attr.aria-invalid]="booking.controls.mobile.touched && booking.controls.mobile.invalid" />
+              @if (booking.controls.mobile.touched && booking.controls.mobile.invalid) { <small class="field-error">Ingresa un número de celular válido.</small> }
+            </label>
+          </div>
+          <label>Servicio de interés *
+            <select formControlName="service" required>
+              <option value="Evaluación general">Evaluación general</option>
+              @for (service of services; track service.value) { <option [value]="service.value">{{ service.title }}</option> }
+              <option value="Otro">Otro servicio</option>
+            </select>
+          </label>
+          <div class="form-row">
+            <label>Fecha preferida <span>(opcional)</span><input formControlName="preferredDate" type="date" [min]="today" /></label>
+            <label>Turno preferido
+              <select formControlName="preferredShift">
+                <option value="INDIFERENTE">Cualquier turno</option>
+                <option value="MANANA">Mañana</option>
+                <option value="TARDE">Tarde</option>
+              </select>
+            </label>
+          </div>
+          <label>¿Quieres contarnos algo más? <span>(opcional)</span><textarea formControlName="message" rows="3" placeholder="Cuéntanos brevemente qué necesitas"></textarea></label>
+          <details class="optional-details">
+            <summary>Agregar DNI o correo electrónico <span>(opcional)</span></summary>
+            <div class="form-row">
+              <label>DNI o documento<input formControlName="documentNumber" inputmode="numeric" autocomplete="off" placeholder="Número de documento" /></label>
+              <label>Correo electrónico
+                <input formControlName="email" type="email" autocomplete="email" placeholder="tucorreo@ejemplo.com" [attr.aria-invalid]="booking.controls.email.touched && booking.controls.email.invalid" />
+                @if (booking.controls.email.touched && booking.controls.email.invalid) { <small class="field-error">Revisa el correo ingresado.</small> }
+              </label>
+            </div>
+          </details>
+          <label class="consent"><input type="checkbox" formControlName="privacyConsent" required /><span>Autorizo el uso de estos datos para que Dental Americana me contacte y coordine mi atención.</span></label>
+          @if (booking.controls.privacyConsent.touched && booking.controls.privacyConsent.invalid) { <small class="field-error consent-error">Debes aceptar el uso de tus datos para enviar la solicitud.</small> }
+          @if (error()) { <p class="booking-error" role="alert"><svg lucideAlertTriangle></svg>{{ error() }}</p> }
+          <button class="booking-submit focus-ring" type="submit" [disabled]="sending()">
+            @if (sending()) { <svg lucideLoaderCircle class="animate-spin"></svg> Enviando solicitud... }
+            @else { <svg lucideCalendarCheck></svg> Enviar solicitud <svg lucideArrowRight></svg> }
+          </button>
+          <p class="form-footnote">Te contactaremos para verificar la disponibilidad. Esta solicitud no confirma una cita.</p>
+        }
+      </form>
+    </section>
+
+    <section class="contact section-wrap" id="contacto" aria-labelledby="contact-title">
+      <img class="contact-photo" src="images/fachada-dental-americana.jpg" alt="Entrada del Consultorio Dental Americana en Ayacucho" width="1536" height="2048" loading="lazy" />
+      <div class="contact-copy"><span class="section-kicker">Estamos para ayudarte</span><h2 id="contact-title">Conversemos sobre tu sonrisa</h2><p>Si prefieres hablar con recepción, también puedes llamarnos o escribirnos por WhatsApp.</p><a class="contact-cta focus-ring" href="https://wa.me/51940577075" target="_blank" rel="noopener noreferrer">Escribir por WhatsApp <svg lucideArrowRight></svg></a></div>
+      <div class="contact-data">
+        <a href="tel:+51940577075"><span><svg lucidePhone></svg></span><span><small>Teléfono</small><strong>940 577 075</strong></span></a>
+        <div><span><svg lucideMapPin></svg></span><span><small>Visítanos</small><strong>Av. Mariscal Cáceres N.º 1072, 2.º nivel</strong></span></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="public-footer"><span>© {{ currentYear }} Dental Americana</span><span>Una atención que empieza escuchándote.</span><a href="#inicio">Volver arriba</a></footer>
+  <nav class="mobile-actions" aria-label="Acciones rápidas">
+    <a href="https://wa.me/51940577075" target="_blank" rel="noopener noreferrer"><svg lucidePhone></svg> WhatsApp</a>
+    <a class="mobile-book" href="#reserva"><svg lucideCalendarCheck></svg> Solicitar cita</a>
+  </nav>
+</div>

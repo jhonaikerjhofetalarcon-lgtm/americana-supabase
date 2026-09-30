@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none" role="img" aria-labelledby="title description">
+  <title id="title">Dental Americana</title>
+  <desc id="description">Diente sonriente con brackets y estrellas</desc>
+  <defs>
+    <path id="star" d="M0-24 5.9-8.1 23.5-7.4 9.3 3.2 14.1 20.8 0 11.3-14.1 20.8-9.3 3.2-23.5-7.4-5.9-8.1Z"/>
+  </defs>
+  <path d="M118 78C55 85 26 138 34 227c9 112 69 203 168 238 30 11 57 16 83 18-99-40-151-125-157-248-4-78 13-117 64-123 37-5 69 9 104 16 37 8 69 13 96-4-44-42-128-105-274-46Z" fill="#0999aa"/>
+  <path d="M202 129c52 51 108 59 178 55 18-1 33-3 48-6 44 87 44 209-3 273-34 46-83 57-122 30-36-25-47-75-62-127-14-49-35-91-74-123 12 79 37 161 82 208 24 25 55 39 84 36 61-7 100-69 99-157-1-74-23-137-48-183-62 22-123 33-182-6Z" fill="#123d80"/>
+  <path d="M172 303c48 31 122 38 185 4" stroke="#09a337" stroke-width="21" stroke-linecap="round"/>
+  <path d="M254 278v82M297 278v82" stroke="#09a337" stroke-width="22" stroke-linecap="round"/>
+  <path d="M245 320h61" stroke="#09a337" stroke-width="16" stroke-linecap="round"/>
+  <g fill="#079bad">
+    <use href="#star" transform="translate(345 83) scale(.58)"/>
+    <use href="#star" transform="translate(394 56) scale(.78)"/>
+    <use href="#star" transform="translate(452 81) scale(1)"/>
+    <use href="#star" transform="translate(457 144) scale(.62)"/>
+    <use href="#star" transform="translate(478 190) scale(.53)"/>
+  </g>
+</svg>

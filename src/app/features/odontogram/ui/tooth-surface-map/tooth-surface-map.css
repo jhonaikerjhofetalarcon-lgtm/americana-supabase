@@ -1,0 +1,145 @@
+:host {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  container-type: inline-size;
+}
+
+.surface-map {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1.3fr 1fr;
+  grid-template-rows: 1fr 1.3fr 1fr;
+  gap: clamp(1px, 2cqi, 4px);
+  width: 100%;
+  aspect-ratio: 1;
+  isolation: isolate;
+}
+
+.surface {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 1px solid #94a3b8;
+  border-radius: clamp(3px, 7cqi, 12px);
+  background: var(--surface-color, #f8fafc);
+  color: #172b43;
+  cursor: pointer;
+  font: inherit;
+  transition:
+    box-shadow 120ms ease,
+    border-color 120ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.surface--top {
+  grid-area: 1 / 1 / 2 / 4;
+  border-radius: 45% 45% 5px 5px;
+}
+
+.surface--left {
+  grid-area: 2 / 1;
+}
+
+.surface--center {
+  grid-area: 2 / 2;
+}
+
+.surface--right {
+  grid-area: 2 / 3;
+}
+
+.surface--bottom {
+  grid-area: 3 / 1 / 4 / 4;
+  border-radius: 5px 5px 45% 45%;
+}
+
+.surface-letter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.15em;
+  height: 1.15em;
+  border-radius: 3px;
+  font-size: clamp(9px, 13cqi, 20px);
+  font-weight: 750;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.surface.has-finding {
+  border-color: #334155;
+}
+
+.has-finding .surface-letter {
+  background: #fff;
+  box-shadow: 0 0 0 1px rgb(15 23 42 / 12%);
+}
+
+.surface[data-treatment-state='INDICADO'] {
+  border-style: dashed;
+}
+
+.surface[data-treatment-state='REALIZADO'] {
+  box-shadow: inset 0 0 0 1px #fff;
+}
+
+.surface:hover:not(:disabled) {
+  border-color: #0f172a;
+  box-shadow: inset 0 0 0 1px #0f172a;
+}
+
+.surface.is-selected {
+  border-color: #0f172a;
+  outline: 2px solid #0f172a;
+  outline-offset: 1px;
+  z-index: 1;
+}
+
+.surface:focus-visible {
+  outline: 3px solid #0369a1;
+  outline-offset: 2px;
+  z-index: 3;
+}
+
+.surface:disabled {
+  cursor: default;
+}
+
+.absence-mark {
+  position: absolute;
+  inset: 8%;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.absence-mark::before,
+.absence-mark::after {
+  position: absolute;
+  top: -12%;
+  left: calc(50% - 1px);
+  width: clamp(2px, 3cqi, 4px);
+  height: 124%;
+  border-radius: 2px;
+  background: #334155;
+  box-shadow: 0 0 0 1px #fff;
+  content: '';
+  pointer-events: none;
+}
+
+.absence-mark::before {
+  transform: rotate(45deg);
+}
+
+.absence-mark::after {
+  transform: rotate(-45deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .surface {
+    transition: none;
+  }
+}

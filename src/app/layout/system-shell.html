@@ -1,0 +1,115 @@
+<div class="system-layout">
+  @if (menuOpen()) {
+    <button class="scrim" aria-label="Cerrar menú" (click)="menuOpen.set(false)"></button>
+  }
+  <aside class="sidebar" [class.open]="menuOpen()">
+    <a routerLink="/" class="system-brand focus-ring"
+      ><img src="brand/dental-americana-logo.svg" alt="" /><small>Dental<br />Americana</small></a
+    >
+    <nav>
+      <a
+        routerLink="/sistema/inicio"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+        (click)="menuOpen.set(false)"
+        ><svg lucideLayoutDashboard></svg><span>Inicio</span></a
+      >
+      @if (canUseAgenda()) {
+        <a routerLink="/sistema/agenda" routerLinkActive="active" (click)="menuOpen.set(false)"
+          ><svg lucideCalendarDays></svg><span>Agenda</span></a
+        >
+      }
+      @if (canUsePatients()) {
+        <a routerLink="/sistema/pacientes" routerLinkActive="active" (click)="menuOpen.set(false)"
+          ><svg lucideUsers></svg><span>Pacientes</span></a
+        >
+      }
+      @if (canUseClinical()) {
+        <a routerLink="/sistema/atencion" routerLinkActive="active" (click)="menuOpen.set(false)"
+          ><svg lucideStethoscope></svg><span>Atención</span></a
+        >
+      }
+      @if (canUseFinance()) {
+        <a routerLink="/sistema/finanzas" routerLinkActive="active" (click)="menuOpen.set(false)"
+          ><svg lucideWalletCards></svg><span>Finanzas</span></a
+        >
+      }
+      @if (canUseFollowUp()) {
+        <a
+          routerLink="/sistema/seguimientos"
+          routerLinkActive="active"
+          (click)="menuOpen.set(false)"
+          ><svg lucideMessageCircle></svg><span>Seguimiento</span></a
+        >
+      }
+      @if (canUseCopilot()) {
+        <a routerLink="/sistema/copiloto" routerLinkActive="active" (click)="menuOpen.set(false)"
+          ><svg lucideBot></svg><span>DentalIA</span></a
+        >
+      }
+    </nav>
+    <div class="sidebar-footer">
+      @if (canUseAdmin()) {
+        <a class="settings" routerLink="/sistema/ajustes" routerLinkActive="active"
+          ><svg lucideSettings></svg><span>Ajustes</span></a
+        >
+      }
+      <button class="logout focus-ring" (click)="logout()">
+        <svg lucideLogOut></svg><span>Salir</span>
+      </button>
+    </div>
+  </aside>
+  <header class="topbar">
+    <button class="menu-button focus-ring" aria-label="Abrir menú" (click)="menuOpen.set(true)">
+      <svg lucideMenu></svg></button
+    ><label class="global-search"
+      ><svg lucideSearch></svg
+      ><input
+        #globalPatientSearch
+        type="search"
+        placeholder="Buscar paciente, DNI o teléfono..."
+        aria-label="Buscar paciente"
+        (keydown.enter)="searchPatient(globalPatientSearch.value)"
+    /></label>
+    <div class="top-actions">
+      @if (canUseFollowUp()) {
+        <a class="icon-button focus-ring" routerLink="/sistema/seguimientos" aria-label="Revisar seguimientos">
+          <svg lucideBell></svg>
+        </a>
+      }
+      <div class="profile">
+        <span>{{ initials() }}</span>
+        <div>
+          <strong>{{ user()?.fullName }}</strong
+          ><small>{{ role() }}</small>
+        </div>
+      </div>
+    </div>
+  </header>
+  <main class="workspace"><router-outlet /></main>
+  <nav class="mobile-nav">
+    <a routerLink="/sistema/inicio" routerLinkActive="active"
+      ><svg lucideLayoutDashboard></svg><span>Inicio</span></a
+    >
+    @if (canUseAgenda()) {
+      <a routerLink="/sistema/agenda" routerLinkActive="active"
+        ><svg lucideCalendarDays></svg><span>Agenda</span></a
+      >
+    }
+    @if (canUseClinical()) {
+      <a routerLink="/sistema/atencion" routerLinkActive="active"
+        ><svg lucideStethoscope></svg><span>Atención</span></a
+      >
+    }
+    @if (canUsePatients()) {
+      <a routerLink="/sistema/pacientes" routerLinkActive="active"
+        ><svg lucideUsers></svg><span>Pacientes</span></a
+      >
+    }
+    @if (canUseFinance()) {
+      <a routerLink="/sistema/finanzas" routerLinkActive="active"
+        ><svg lucideWalletCards></svg><span>Finanzas</span></a
+      >
+    }
+  </nav>
+</div>

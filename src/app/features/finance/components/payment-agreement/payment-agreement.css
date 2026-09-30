@@ -1,0 +1,348 @@
+:host {
+  display: block;
+  font-family: inherit;
+}
+.payment-entry {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  margin-top: 16px;
+  border: 1px solid #cde4e4;
+  border-radius: 14px;
+  background: #f0faf7;
+}
+.payment-entry div {
+  display: grid;
+  gap: 4px;
+}
+.payment-entry strong {
+  color: #18465a;
+  font-size: 0.9rem;
+}
+.payment-entry small {
+  color: #587684;
+  font-size: 0.74rem;
+}
+.payment-entry button,
+.confirm-payment,
+.receipt-actions button:first-child {
+  border: 0;
+  border-radius: 9px;
+  padding: 11px 15px;
+  color: white;
+  background: #137b75;
+  font-size: 0.78rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+.previous-payments {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+.previous-payments button {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 7px;
+  padding: 10px 12px;
+  border: 1px solid #dce7e9;
+  border-radius: 9px;
+  background: white;
+  color: #356579;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+.agreement-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: #1835478c;
+}
+.agreement-dialog {
+  position: fixed;
+  z-index: 91;
+  inset: 4vh max(12px, calc((100vw - 640px) / 2));
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  border: 1px solid #d6e5e8;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 25px 70px #112b3752;
+  color: #18364d;
+}
+.dialog-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 19px 24px;
+  border-bottom: 1px solid #e1eaed;
+}
+.dialog-head small {
+  color: #168093;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+.dialog-head h2 {
+  margin: 3px 0 0;
+  font-size: 1.25rem;
+}
+.dialog-head button {
+  border: 0;
+  background: none;
+  color: #78909b;
+  font-size: 1.6rem;
+  cursor: pointer;
+}
+.agreement-dialog form {
+  display: grid;
+  gap: 15px;
+  padding: 21px 24px 26px;
+}
+.agreement-summary {
+  display: grid;
+  gap: 7px;
+  padding: 15px;
+  border-radius: 12px;
+  background: #f2f8f8;
+}
+.agreement-summary > strong {
+  font-size: 0.95rem;
+}
+.agreement-summary > span {
+  font-size: 0.7rem;
+  color: #708894;
+}
+.agreement-summary div,
+.balance-preview,
+.receipt-totals div,
+.receipt-items div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.agreement-summary div {
+  font-size: 0.76rem;
+}
+.agreement-summary div span {
+  color: #5c7783;
+}
+details {
+  border: 1px solid #dfebed;
+  border-radius: 9px;
+  padding: 10px 12px;
+  font-size: 0.76rem;
+}
+details summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+details p {
+  margin: 7px 0 0;
+  color: #5e7782;
+}
+.agreement-inputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.agreement-inputs label {
+  display: grid;
+  gap: 5px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.agreement-inputs input,
+.agreement-inputs select {
+  width: 100%;
+  min-height: 39px;
+  padding: 8px;
+  border: 1px solid #cddde1;
+  border-radius: 8px;
+  background: #fff;
+  color: #18364d;
+}
+.agreement-inputs label:last-child:nth-child(3) {
+  grid-column: 1/-1;
+}
+.balance-preview {
+  align-items: center;
+  padding: 12px;
+  border-radius: 9px;
+  color: #136d58;
+  background: #e7f6ef;
+  font-size: 0.8rem;
+}
+.balance-preview strong {
+  font-size: 1rem;
+}
+.agreement-terms {
+  margin: 0;
+  padding: 12px;
+  border-left: 3px solid #168093;
+  background: #f4f8f8;
+  color: #4c6572;
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+.signature-heading {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.77rem;
+}
+.signature-heading button {
+  border: 0;
+  background: none;
+  color: #16748a;
+  cursor: pointer;
+}
+canvas {
+  display: block;
+  width: 100%;
+  height: 125px;
+  border: 1px dashed #91acb3;
+  border-radius: 10px;
+  background: #fff;
+  touch-action: none;
+  cursor: crosshair;
+}
+.signature-help,
+.agreement-warning {
+  color: #657e88;
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+.agreement-warning,
+.agreement-error {
+  color: #9b3941;
+}
+.agreement-error,
+.agreement-loading {
+  margin: 16px 24px;
+  font-size: 0.78rem;
+}
+.confirm-payment:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.agreement-print {
+  padding: 26px;
+  color: #203b48;
+  background: #fff;
+}
+.agreement-print header {
+  border-bottom: 2px solid #157c87;
+  padding-bottom: 13px;
+}
+.agreement-print header small {
+  color: #14788a;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.agreement-print h2 {
+  margin: 6px 0;
+  font-size: 1.35rem;
+}
+.agreement-print h3 {
+  margin: 20px 0 8px;
+  font-size: 0.85rem;
+}
+.agreement-print p,
+.agreement-print small {
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+.receipt-patient {
+  display: grid;
+  gap: 3px;
+  margin: 18px 0;
+  font-size: 0.8rem;
+}
+.receipt-patient span {
+  color: #607783;
+}
+.receipt-items,
+.receipt-totals {
+  display: grid;
+  gap: 6px;
+}
+.receipt-items div,
+.receipt-totals div {
+  padding: 7px 0;
+  border-bottom: 1px solid #e4ecee;
+  font-size: 0.75rem;
+}
+.receipt-highlight {
+  color: #0b7154;
+  font-weight: 800;
+}
+.receipt-terms {
+  margin: 18px 0;
+  padding: 11px;
+  border: 1px solid #dce9e9;
+  border-radius: 8px;
+}
+.receipt-signature {
+  display: grid;
+  justify-items: center;
+  margin: 15px auto 20px;
+  width: 220px;
+}
+.receipt-signature img {
+  max-width: 200px;
+  max-height: 70px;
+  object-fit: contain;
+}
+.signature-line {
+  width: 100%;
+  border-top: 1px solid #54707b;
+  text-align: center;
+  padding-top: 5px;
+  font-size: 0.7rem;
+}
+.receipt-actions {
+  display: flex;
+  gap: 8px;
+  padding: 0 26px 24px;
+}
+.receipt-actions button:last-child {
+  border: 1px solid #cddde1;
+  background: #fff;
+  border-radius: 9px;
+  padding: 9px 13px;
+  color: #316477;
+  cursor: pointer;
+}
+@media (max-width: 600px) {
+  .agreement-dialog {
+    inset: 0;
+    border-radius: 0;
+  }
+  .agreement-dialog form,
+  .agreement-print {
+    padding: 17px;
+  }
+  .dialog-head {
+    padding: 16px 17px;
+  }
+  .agreement-inputs {
+    grid-template-columns: 1fr;
+  }
+  .payment-entry {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+.cash-opening { display:grid; gap:8px; padding:12px; border:1px solid #e6d8b8; border-radius:10px; background:#fffaf0; }
+.cash-opening p { margin:0; color:#756138; font-size:.74rem; }
+.cash-opening label { display:grid; gap:5px; font-size:.72rem; }
+.cash-opening input { width:100%; min-height:38px; padding:7px; border:1px solid #cddde1; border-radius:8px; }
+.cash-opening button { justify-self:start; border:0; padding:9px 13px; border-radius:8px; color:#fff; background:#137b75; cursor:pointer; }
+.agreement-error button,.agreement-loading button { margin-left:8px; border:1px solid #c5dbe1; border-radius:8px; padding:6px 9px; color:#176f82; background:#fff; cursor:pointer; }
+:host .payment-fields { min-width: 0; margin: 0; padding: 0; border: 0; }

@@ -1,0 +1,24 @@
+<div class="surface-map" role="group" [attr.aria-label]="'Superficies de la pieza ' + tooth()">
+  @for (face of surfaces(); track face.position) {
+    <button
+      type="button"
+      class="surface"
+      [class]="'surface surface--' + face.position"
+      [class.has-finding]="face.hasFinding"
+      [class.is-selected]="selectedSurface() === face.surface"
+      [attr.data-surface]="face.surface"
+      [attr.data-treatment-state]="face.treatmentState"
+      [style.--surface-color]="face.color"
+      [attr.aria-label]="face.description"
+      [attr.aria-pressed]="selectedSurface() === face.surface"
+      [title]="face.description"
+      [disabled]="disabled()"
+      (click)="selectSurface(face.surface)"
+    >
+      <span class="surface-letter" aria-hidden="true">{{ face.abbreviation }}</span>
+    </button>
+  }
+  @if (absent()) {
+    <span class="absence-mark" aria-hidden="true"></span>
+  }
+</div>

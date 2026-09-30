@@ -1,0 +1,355 @@
+<section class="finance-page">
+  <header class="page-head">
+    <div>
+      <small>Control administrativo</small>
+      <h1>Finanzas y caja</h1>
+      <p>Ingresos, gastos, cuentas por cobrar y conciliación diaria.</p>
+    </div>
+    <div>
+      @if (cash()) {
+        <span class="cash-open"><i></i>Caja abierta · #{{ cash()!.id }}</span>
+        @if (canWrite()) {
+          <button class="secondary" [disabled]="saving()" (click)="closeCash()">
+            <svg lucideLockKeyhole></svg>Cerrar caja
+          </button>
+        }
+      } @else if (canWrite()) {
+        <button class="primary" (click)="openCash()">
+          <svg lucideWalletCards></svg>Abrir caja
+        </button>
+      }
+      <button class="refresh" [disabled]="loading()" (click)="load()">
+        <svg lucideRefreshCw [class.animate-spin]="loading()"></svg>
+      </button>
+    </div>
+  </header>
+  @if (contextPatientId()) {
+    <section class="patient-context" aria-label="Cobro del paciente seleccionado">
+      <div>
+        <strong>{{ contextPatientName() }}</strong
+        ><span
+          >Cuentas y pagos filtrados para este paciente. Los indicadores generales son del
+          consultorio.</span
+        >
+      </div>
+      @if (!loading() && !error()) {
+        <strong>Saldo: {{ contextBalance() | currency: 'PEN' : 'S/ ' : '1.2-2' }}</strong>
+      }
+      @if (returnEncounterId()) {
+        <a routerLink="/sistema/atencion" [queryParams]="{ encounterId: returnEncounterId() }"
+          >Volver a la atención</a
+        >
+      }
+      <a routerLink="/sistema/finanzas">Ver todos los pacientes</a>
+    </section>
+  }
+  @if (error() && !modal()) {
+    <div class="message error"><svg lucideAlertTriangle></svg>{{ error() }}</div>
+  }
+  @if (success()) {
+    <div class="message success"><svg lucideCheck></svg>{{ success() }}</div>
+  }
+  @if (loading() && !dashboard()) {
+    <div class="state">
+      <svg lucideLoaderCircle class="animate-spin"></svg>
+      <p>Cargando finanzas...</p>
+    </div>
+  } @else if (dashboard()) {
+    <div class="metrics">
+      <article>
+        <span class="green"><svg lucideArrowUpRight></svg></span>
+        <div>
+          <small>Ingresos de hoy</small
+          ><strong>{{ dashboard()!.income | currency: 'PEN' : 'S/ ' : '1.2-2' }}</strong>
+          <p>{{ dashboard()!.paymentsCount }} cobros</p>
+          @if (dashboard()!.voidedPaymentsCount) { <p>{{ dashboard()!.voidedPaymentsCount }} anulaciones · − {{ dashboard()!.voidedAmount | currency:'PEN':'S/ ':'1.2-2' }}</p> }
+        </div>
+      </article>
+      <article>
+        <span class="red"><svg lucideArrowDownRight></svg></span>
+        <div>
+          <small>Gastos de hoy</small
+          ><strong>{{ dashboard()!.expenses | currency: 'PEN' : 'S/ ' : '1.2-2' }}</strong>
+          <p>{{ dashboard()!.expensesCount }} operaciones</p>
+        </div>
+      </article>
+      <article>
+        <span class="blue"><svg lucideLandmark></svg></span>
+        <div>
+          <small>Resultado neto</small
+          ><strong>{{ dashboard()!.net | currency: 'PEN' : 'S/ ' : '1.2-2' }}</strong>
+          <p>Efectivo: {{ dashboard()!.cashIncome | currency: 'PEN' : 'S/ ' : '1.2-2' }}</p>
+        </div>
+      </article>
+      <article>
+        <span class="amber"><svg lucideClock3></svg></span>
+        <div>
+          <small>Cuentas por cobrar</small
+          ><strong>{{ dashboard()!.receivable | currency: 'PEN' : 'S/ ' : '1.2-2' }}</strong>
+          <p>Saldo total pendiente</p>
+        </div>
+      </article>
+    </div>
+    <div class="content">
+      <main>
+        <nav class="tabs">
+          <button [class.active]="tab() === 'accounts'" (click)="tab.set('accounts')">
+            Cuentas por cobrar <span>{{ contextAccounts().length }}</span></button
+          ><button [class.active]="tab() === 'payments'" (click)="tab.set('payments')">
+            Pagos de hoy <span>{{ contextPayments().length }}</span></button
+          ><button [class.active]="tab() === 'expenses'" (click)="tab.set('expenses')">
+            Gastos <span>{{ expenses().length }}</span>
+          </button>
+        </nav>
+        @if (tab() === 'accounts') {
+          <div class="table">
+            <div class="thead">
+              <span>Paciente / plan</span><span>Total</span><span>Pagado</span><span>Saldo</span
+              ><span>Estado</span><span></span>
+            </div>
+            @for (a of contextAccounts(); track a.id) {
+              <article>
+                <div>
+                  <strong>{{ a.patientName }}</strong
+                  ><small>{{ a.planCode }}</small>
+                </div>
+                <span>{{ a.totalAmount | currency: 'PEN' : 'S/ ' : '1.2-2' }}</span
+                ><span>{{ a.paidAmount | currency: 'PEN' : 'S/ ' : '1.2-2' }}</span
+                ><strong>{{ a.balance | currency: 'PEN' : 'S/ ' : '1.2-2' }}</strong
+                ><span class="chip" [class.paid]="a.status === 'PAGADA'">{{ label(a.status) }}</span
+                ><button
+                  [disabled]="loading() || !!error() || a.balance === 0 || a.status === 'ANULADA' || !canWrite()"
+                  (click)="openPayment(a)"
+                >
+                  <svg lucidePlus></svg>Cobrar
+                </button>
+              </article>
+            } @empty {
+              <div class="empty">
+                {{
+                  contextPatientId()
+                    ? 'No hay cuentas registradas para este paciente. Revisa su tratamiento y presupuesto antes de cobrar.'
+                    : 'No existen cuentas por cobrar.'
+                }}
+              </div>
+            }
+          </div>
+        }
+        @if (tab() === 'payments') {
+          <div class="table payments">
+            <div class="thead">
+              <span>Constancia / paciente</span><span>Método</span><span>Referencia</span
+              ><span>Monto</span><span>Fecha</span><span></span>
+            </div>
+            @for (p of contextPayments(); track p.id) {
+              <article>
+                <div>
+                  <strong>{{ p.receiptNumber }}</strong
+                  ><small>{{ p.patientName }} · {{ p.planCode }}</small>
+                  <small [class.voided]="p.status === 'ANULADO'">{{ label(p.status) }}</small>
+                  @if (p.voidReason) { <small class="voided">{{ p.voidReason }} · {{ p.voidedAt | date:'dd/MM/yyyy, HH:mm' }} · Usuario #{{ p.voidedBy }}</small> }
+                </div>
+                <span>{{ p.paymentMethod }}</span
+                ><span>{{ p.reference || '—' }}</span
+                ><strong [class.income]="p.status !== 'ANULADO'" [class.voided]="p.status === 'ANULADO'">{{ p.status === 'ANULADO' ? '' : '+' }} {{ p.amount | currency: 'PEN' : 'S/ ' : '1.2-2' }}</strong
+                ><span>{{ p.registeredAt | date: 'HH:mm' }}</span
+                ><div class="payment-actions"><button
+                  class="icon"
+                  (click)="downloadReceipt(p)"
+                  aria-label="Ver constancia firmada"
+                >
+                  <svg lucideReceipt></svg>
+                </button>
+                @if (canVoid(p)) { <button class="void-button" type="button" (click)="openVoid(p)">Anular</button> }
+                </div>
+              </article>
+            } @empty {
+              <div class="empty">Todavía no se registraron pagos hoy.</div>
+            }
+          </div>
+        }
+        @if (tab() === 'expenses') {
+          <div class="section-action">
+            @if (canWrite()) {
+              <button class="primary" (click)="openExpense()">
+                <svg lucidePlus></svg>Registrar gasto
+              </button>
+            }
+          </div>
+          <div class="table expenses">
+            <div class="thead">
+              <span>Detalle</span><span>Categoría</span><span>Método</span><span>Monto</span
+              ><span>Fecha</span><span></span>
+            </div>
+            @for (e of expenses(); track e.id) {
+              <article>
+                <div>
+                  <strong>{{ e.description }}</strong
+                  ><small
+                    >{{ e.provider || 'Sin proveedor' }} ·
+                    {{ e.documentReference || 'Sin documento' }}</small
+                  >
+                </div>
+                <span>{{ e.category }}</span
+                ><span>{{ e.paymentMethod }}</span
+                ><strong class="outcome"
+                  >− {{ e.amount | currency: 'PEN' : 'S/ ' : '1.2-2' }}</strong
+                ><span>{{ e.registeredAt | date: 'HH:mm' }}</span
+                ><span></span>
+              </article>
+            } @empty {
+              <div class="empty">No se registraron gastos hoy.</div>
+            }
+          </div>
+        }
+      </main>
+      <aside>
+        <section class="cash-card">
+          <header>
+            <span><svg lucideBanknote></svg></span>
+            <div>
+              <h2>Estado de caja</h2>
+              <p>{{ cash() ? 'Sesión activa' : 'Sin apertura' }}</p>
+            </div>
+          </header>
+          @if (cash()) {
+            <dl>
+              <div>
+                <dt>Apertura</dt>
+                <dd>{{ cash()!.openingAmount | currency: 'PEN' : 'S/ ' : '1.2-2' }}</dd>
+              </div>
+              <div>
+                <dt>Hora</dt>
+                <dd>{{ cash()!.openedAt | date: 'HH:mm' }}</dd>
+              </div>
+              <div>
+                <dt>Ingresos efectivo</dt>
+                <dd>{{ dashboard()!.cashIncome | currency: 'PEN' : 'S/ ' : '1.2-2' }}</dd>
+              </div>
+            </dl>
+          } @else {
+            <p class="cash-empty">Abre una sesión para registrar cobros y gastos.</p>
+          }
+        </section>
+        <section class="accounting-note">
+          <svg lucideCircleDollarSign></svg>
+          <h3>Contabilidad administrativa</h3>
+          <p>
+            Esta sección organiza movimientos y saldos para el contador. No reemplaza libros ni
+            declaraciones tributarias oficiales.
+          </p>
+          <button [disabled]="exporting()" (click)="downloadReport()">
+            <svg lucideFileDown></svg>{{ exporting() ? 'Exportando…' : 'Exportar reporte CSV' }}
+          </button>
+        </section>
+      </aside>
+    </div>
+  }
+</section>
+@if (selectedAccount(); as paymentAccount) {
+  <app-payment-agreement
+    [account]="paymentAccount"
+    [paymentBlocked]="loading() || !!error()"
+    [autoOpen]="true"
+    (paid)="load()"
+    (refreshRequested)="load()"
+    (closed)="selectedAccount.set(null)"
+  />
+}
+@if (selectedReceiptPayment(); as receiptPayment) {
+  <app-payment-agreement
+    [receiptPayment]="receiptPayment"
+    (closed)="selectedReceiptPayment.set(null)"
+  />
+}
+@if (modal()) {
+  <button class="scrim" (click)="closeModal()"></button>
+  <aside class="modal" appModal aria-label="Operación de caja" [modalDismissDisabled]="saving()" (modalDismiss)="closeModal()">
+    <header>
+      <div>
+        <small>Operación confirmada</small>
+        <h2>
+          @switch (modal()) {
+            @case ('void') { Anular cobro }
+            @case ('expense') {
+              Registrar gasto
+            }
+            @case ('open') {
+              Apertura de caja
+            }
+            @case ('close') {
+              Cierre de caja
+            }
+          }
+        </h2>
+      </div>
+      <button (click)="closeModal()"><svg lucideX></svg></button>
+    </header>
+    @if (error()) {
+      <div class="message error"><svg lucideAlertTriangle></svg>{{ error() }}</div>
+    }
+    @if (modal() === 'void' && voidTarget(); as payment) {
+      <section class="void-payment">
+        <p><strong>{{ payment.receiptNumber }} · {{ payment.patientName }}</strong></p>
+        <p>El importe de {{ payment.amount | currency:'PEN':'S/ ':'1.2-2' }} volverá al saldo pendiente. La constancia se conservará marcada como anulada.</p>
+        <p>Solo se corrigen cobros de la caja abierta. Si recibiste el dinero, esta acción registra su devolución mediante {{ payment.paymentMethod }}.</p>
+        <label>Motivo de anulación<textarea rows="3" [formControl]="voidReason" [readOnly]="saving()" maxlength="500"></textarea></label>
+        <label class="void-confirm"><input type="checkbox" [checked]="voidConfirmed()" [disabled]="saving()" (change)="voidConfirmed.set(!voidConfirmed())" />Confirmo que el cobro fue un error o que el dinero fue devuelto.</label>
+        <button type="button" class="primary" [disabled]="saving() || !voidConfirmed() || voidReason.invalid" (click)="saveVoid()">{{ saving() ? 'Anulando…' : 'Confirmar anulación' }}</button>
+      </section>
+    }
+    @if (modal() === 'expense') {
+      <form [formGroup]="expenseForm" (ngSubmit)="saveExpense()">
+        <label
+          >Categoría<select formControlName="category">
+            <option>Insumos</option>
+            <option>Servicios</option>
+            <option>Laboratorio</option>
+            <option>Mantenimiento</option>
+            <option>Personal</option>
+            <option>Otros</option>
+          </select></label
+        ><label>Descripción<input formControlName="description" /></label>
+        <div class="two">
+          <label>Proveedor<input formControlName="provider" /></label
+          ><label
+            >{{ expenseMethodNeedsReference() ? 'Documento / operación' : 'Documento'
+            }}<input formControlName="documentReference"
+          /></label>
+        </div>
+        <label
+          >Método<select formControlName="methodId">
+            @for (m of methods(); track m.id) {
+              <option [ngValue]="m.id">{{ m.name }}</option>
+            }
+          </select></label
+        ><label>Monto<input type="number" step="0.01" formControlName="amount" /></label
+        ><button class="primary" [disabled]="saving()">Confirmar gasto</button>
+      </form>
+    }
+    @if (modal() === 'open' || modal() === 'close') {
+      <form [formGroup]="cashForm" (ngSubmit)="saveCash()">
+        <label
+          >{{ modal() === 'open' ? 'Fondo de apertura' : 'Monto contado'
+          }}<input type="number" step="0.01" formControlName="amount"
+        /></label>
+        @if (modal() === 'close') {
+          <label>Observación<textarea rows="3" formControlName="observation"></textarea></label>
+        }
+        <div class="confirmation">
+          <svg lucideCheck></svg>
+          <p>
+            {{
+              modal() === 'open'
+                ? 'La caja quedará disponible para operaciones del día.'
+                : 'Se calculará la diferencia entre efectivo esperado y contado.'
+            }}
+          </p>
+        </div>
+        <button class="primary" [disabled]="saving()">
+          Confirmar {{ modal() === 'open' ? 'apertura' : 'cierre' }}
+        </button>
+      </form>
+    }
+  </aside>
+}
