@@ -3,7 +3,7 @@
     <div>
       <small>Comunicación con pacientes</small>
       <h1>WhatsApp</h1>
-      <p>Conversaciones y citas en un solo lugar.</p>
+      <p>Conversaciones, reservas y seguimiento de pacientes en un solo lugar.</p>
     </div>
     <div class="header-actions">
       <button
@@ -24,7 +24,12 @@
         </button>
       }
       @if (canWrite()) {
-        <button class="icon-button" title="Sincronizar chats" (click)="syncChats()" [disabled]="syncing()">
+        <button
+          class="icon-button"
+          title="Sincronizar chats"
+          (click)="syncChats()"
+          [disabled]="syncing()"
+        >
           <svg lucideRefreshCw [class.animate-spin]="loading() || syncing()"></svg>
         </button>
       }
@@ -42,14 +47,29 @@
   }
 
   <nav class="view-tabs">
-    <button [class.active]="view() === 'chat'" (click)="view.set('chat')">
+    <button
+      [class.active]="view() === 'chat'"
+      [attr.aria-current]="view() === 'chat' ? 'page' : null"
+      (click)="view.set('chat')"
+    >
       <svg lucideMessageCircle></svg>Conversaciones
     </button>
-    <button [class.active]="view() === 'followups'" (click)="view.set('followups'); refreshQuietly()">
+    <button
+      [class.active]="view() === 'followups'"
+      [attr.aria-current]="view() === 'followups' ? 'page' : null"
+      (click)="view.set('followups'); refreshQuietly()"
+    >
       <svg lucideClock3></svg>Seguimientos
       @if (alerts().length) {
         <b>{{ alerts().length }}</b>
       }
+    </button>
+    <button
+      [class.active]="view() === 'automations'"
+      [attr.aria-current]="view() === 'automations' ? 'page' : null"
+      (click)="openAutomations()"
+    >
+      <svg lucideCalendar></svg>Automatizaciones
     </button>
   </nav>
 
@@ -66,7 +86,9 @@
         </form>
         <div class="conversation-list">
           @if (loading() || searchingConversations()) {
-            <div class="loading"><svg lucideLoaderCircle class="animate-spin"></svg>Cargando...</div>
+            <div class="loading">
+              <svg lucideLoaderCircle class="animate-spin"></svg>Cargando...
+            </div>
           }
           @for (conversation of conversations(); track conversation.id) {
             <button
@@ -94,9 +116,17 @@
             }
           }
           @if (hasMoreConversations()) {
-            <button class="load-more" type="button" (click)="loadMoreConversations()"
-              [disabled]="loadingMoreConversations()">
-              @if (loadingMoreConversations()) { Cargando... } @else { Mostrar más conversaciones }
+            <button
+              class="load-more"
+              type="button"
+              (click)="loadMoreConversations()"
+              [disabled]="loadingMoreConversations()"
+            >
+              @if (loadingMoreConversations()) {
+                Cargando...
+              } @else {
+                Mostrar más conversaciones
+              }
             </button>
           }
         </div>
@@ -115,14 +145,27 @@
               ><svg lucidePhone></svg
             ></a>
           </header>
-          <div #messageViewport class="messages" [class.loading]="loadingMessages()">
+          <div
+            #messageViewport
+            class="messages"
+            [class.loading]="loadingMessages()"
+            (scroll)="onMessageScroll()"
+          >
             @if (loadingMessages()) {
               <div class="loading"><svg lucideLoaderCircle class="animate-spin"></svg></div>
             }
             @if (hasOlderMessages()) {
-              <button class="load-older" type="button" (click)="loadOlderMessages()"
-                [disabled]="loadingOlderMessages()">
-                @if (loadingOlderMessages()) { Cargando... } @else { Mostrar mensajes anteriores }
+              <button
+                class="load-older"
+                type="button"
+                (click)="loadOlderMessages()"
+                [disabled]="loadingOlderMessages()"
+              >
+                @if (loadingOlderMessages()) {
+                  Cargando...
+                } @else {
+                  Mostrar mensajes anteriores
+                }
               </button>
             }
             @for (message of messages(); track trackMessage($index, message)) {
@@ -130,7 +173,19 @@
                 [class.outgoing]="message.direction === 'SALIENTE'"
                 [class.failed]="message.status === 'FALLIDO'"
               >
+                @if (message.type === 'HORARIOS_CITA') {
+                  <small class="message-kind">Horarios disponibles</small>
+                }
+                @if (message.type === 'MENU_CITAS') {
+                  <small class="message-kind">Asistente de citas</small>
+                }
+                @if (message.type === 'CITA_RESERVADA') {
+                  <small class="message-kind">Reserva creada</small>
+                }
                 <p>{{ message.content }}</p>
+                @if (message.reviewRequired) {
+                  <small class="review-kind">Requiere revisión de recepción</small>
+                }
                 <footer>
                   <time>{{ message.createdAt | date: 'dd/MM HH:mm' }}</time>
                   @if (message.direction === 'SALIENTE') {
@@ -163,20 +218,20 @@
             }
           </div>
           @if (canWrite()) {
-          <form class="chat-composer" [formGroup]="messageForm" (ngSubmit)="send()">
-            <textarea
-              rows="1"
-              formControlName="content"
-              placeholder="Escribe un mensaje"
-              (keydown.enter)="handleEnter($event)"
-            ></textarea>
-            <button
-              class="send-button"
-              [disabled]="messageForm.invalid || saving() || !conversation.patientId"
-            >
-              <svg lucideSend></svg>
-            </button>
-          </form>
+            <form class="chat-composer" [formGroup]="messageForm" (ngSubmit)="send()">
+              <textarea
+                rows="1"
+                formControlName="content"
+                placeholder="Escribe un mensaje"
+                (keydown.enter)="handleEnter($event)"
+              ></textarea>
+              <button
+                class="send-button"
+                [disabled]="messageForm.invalid || saving() || !conversation.patientId"
+              >
+                <svg lucideSend></svg>
+              </button>
+            </form>
           }
         } @else {
           <div class="chat-placeholder">
@@ -232,7 +287,7 @@
         }
       </aside>
     </div>
-  } @else {
+  } @else if (view() === 'followups') {
     <div class="followups-grid">
       @for (followup of followups(); track followup.id) {
         <article [class.alert]="followup.status === 'ALERTA'">
@@ -258,18 +313,253 @@
         <div class="empty"><p>No hay seguimientos.</p></div>
       }
     </div>
+  } @else {
+    <section class="automation-page" aria-label="Automatizaciones de WhatsApp">
+      <header class="automation-hero">
+        <div class="automation-hero-main">
+          <span class="automation-hero-icon"><svg lucideCalendar></svg></span>
+          <div>
+            <small>CENTRO DE AUTOMATIZACIONES</small>
+            <h2>Tu agenda, conectada con WhatsApp</h2>
+            <p>
+              Configura qué mensajes salen del consultorio. Las reservas usan horarios libres de la
+              agenda y las conversaciones quedan visibles aquí.
+            </p>
+          </div>
+        </div>
+        <div class="automation-hero-side">
+          @if (automationSettings().length) {
+            <span class="automation-hero-count"
+              ><span
+                class="status-dot"
+                [class.on]="activeAutomationCount() > 0"
+                aria-hidden="true"
+              ></span
+              >{{ activeAutomationCount() }} de 3 flujos habilitados</span
+            >
+          }
+          <button
+            type="button"
+            class="automation-connection"
+            [attr.data-status]="session().status"
+            (click)="openConnectionDialog()"
+          >
+            @if (session().status === 'CONECTADO') {
+              <svg lucideWifi></svg>
+            } @else {
+              <svg lucideWifiOff></svg>
+            }
+            @switch (session().status) {
+              @case ('CONECTADO') {
+                WhatsApp conectado
+              }
+              @case ('ERROR') {
+                Revisar conexión
+              }
+              @case ('CONECTANDO') {
+                Vinculando WhatsApp
+              }
+              @default {
+                Conectar WhatsApp
+              }
+            }
+          </button>
+          @if (session().phone && session().status === 'CONECTADO') {
+            <small>+{{ session().phone }}</small>
+          }
+        </div>
+      </header>
+      @if (session().status !== 'CONECTADO') {
+        <div class="automation-banner" role="status">
+          <svg lucideWifiOff></svg
+          ><span>{{
+            session().status === 'ERROR'
+              ? 'No pudimos conectar con el servicio de WhatsApp. Revisa la conexión para continuar.'
+              : 'Vincula el número del consultorio para enviar y recibir mensajes automáticos.'
+          }}</span
+          ><button type="button" (click)="openConnectionDialog()">Ver conexión</button>
+        </div>
+      }
+      <section class="automation-controls" aria-label="Controles de automatización">
+        <header>
+          <div>
+            <small>A TU MEDIDA</small>
+            <h3>Elige qué automatizar</h3>
+            <p>Prepara tus flujos y activa el control general cuando estés listo.</p>
+          </div>
+          @if (canConfigureAutomations()) {
+            <button
+              type="button"
+              class="automation-refresh"
+              (click)="loadAutomationSettings()"
+              [disabled]="automationLoading() || automationSavingKey() !== null"
+            >
+              <svg lucideRefreshCw [class.animate-spin]="automationLoading()"></svg>Actualizar
+            </button>
+          }
+        </header>
+        @if (canConfigureAutomations()) {
+          @if (automationError()) {
+            <p class="automation-error" role="alert">
+              <svg lucideAlertTriangle></svg>{{ automationError() }}
+            </p>
+          }
+          @if (automationLoading() && !automationSettings().length) {
+            <p class="automation-loading">
+              <svg lucideLoaderCircle class="animate-spin"></svg>Cargando controles...
+            </p>
+          } @else if (!automationSettings().length) {
+            <p class="automation-loading">
+              No se pudieron cargar los controles. Pulsa Actualizar para reintentar.
+            </p>
+          } @else {
+            <div class="automation-toggles">
+              @for (automation of automationDefinitions; track automation.key) {
+                <button
+                  type="button"
+                  class="automation-toggle"
+                  [class.enabled]="automationEffective(automation.key)"
+                  [class.prepared]="automationState(automation.key) === 'Preparada'"
+                  [class.master]="automation.key === 'whatsapp.automatizacion.activa'"
+                  [disabled]="
+                    automationSavingKey() !== null ||
+                    automationLoading() ||
+                    !automationSettingAvailable(automation.key)
+                  "
+                  role="switch"
+                  [attr.aria-checked]="automationEnabled(automation.key)"
+                  [attr.aria-label]="automation.name + ': ' + automationState(automation.key)"
+                  (click)="toggleAutomation(automation.key)"
+                >
+                  <span class="toggle-symbol" aria-hidden="true">
+                    @if (automationSavingKey() === automation.key) {
+                      <svg lucideLoaderCircle class="animate-spin"></svg>
+                    } @else {
+                      @switch (automation.key) {
+                        @case ('whatsapp.automatizacion.activa') {
+                          <svg lucideMessageCircle></svg>
+                        }
+                        @case ('whatsapp.automatizacion.citas') {
+                          <svg lucideClock3></svg>
+                        }
+                        @case ('whatsapp.automatizacion.reservas') {
+                          <svg lucideCalendar></svg>
+                        }
+                        @default {
+                          <svg lucideUser></svg>
+                        }
+                      }
+                    }
+                  </span>
+                  <span class="toggle-copy"
+                    ><strong>{{ automation.name }}</strong
+                    ><small>{{ automation.description }}</small></span
+                  >
+                  <span class="toggle-state">{{
+                    automationSavingKey() === automation.key
+                      ? 'Guardando...'
+                      : automationState(automation.key)
+                  }}</span>
+                  <span
+                    class="toggle-switch"
+                    [class.on]="automationEnabled(automation.key)"
+                    aria-hidden="true"
+                  ></span>
+                </button>
+              }
+            </div>
+            <p class="automation-footnote">
+              Al pausar una opción, los mensajes automáticos pendientes de esa opción se cancelan.
+              Los mensajes manuales siguen disponibles.
+            </p>
+          }
+        } @else {
+          <p class="automation-note">
+            Solo el propietario odontólogo puede cambiar las automatizaciones.
+          </p>
+        }
+      </section>
+      <section class="automation-cards" aria-labelledby="booking-flow-title">
+        <header>
+          <small>PASO A PASO</small>
+          <h3 id="booking-flow-title">Así reserva el paciente</h3>
+          <p>Una conversación sencilla, conectada con tu agenda.</p>
+        </header>
+        <article>
+          <span class="step-number">01</span>
+          <h3>El paciente escribe</h3>
+          <p>
+            Con <strong>HOLA</strong> abre el menú. Con <strong>RESERVAR</strong> consulta los
+            turnos disponibles.
+          </p>
+        </article>
+        <article>
+          <span class="step-number">02</span>
+          <h3>Elige una hora libre</h3>
+          <p>Recibe hasta tres opciones libres y responde <strong>1, 2 o 3</strong>.</p>
+          <div class="booking-hours" aria-label="Horas posibles, sujetas a disponibilidad">
+            <span>09:00</span><span>10:00</span><span>11:00</span><span>15:00</span
+            ><span>16:00</span><span>17:00</span>
+          </div>
+        </article>
+        <article>
+          <span class="step-number">03</span>
+          <h3>La cita se registra</h3>
+          <p>Se vuelve a comprobar la disponibilidad antes de guardar la cita.</p>
+        </article>
+        <footer><svg lucideClock3></svg>Ofertas válidas por 10 minutos · Hora de Perú</footer>
+      </section>
+      <div class="automation-details">
+        <section>
+          <h3>Cancelaciones y cambios</h3>
+          <p>
+            <strong>CANCELAR</strong> libera la cita futura cuando se identifica de forma segura. Si
+            hay varias citas, tú revisas la solicitud. <strong>REPROGRAMAR</strong> deja el caso
+            pendiente para acordar otra fecha.
+          </p>
+        </section>
+        <section>
+          <h3>Cuándo necesitas intervenir</h3>
+          <p>
+            Los números no identificados, sin autorización de WhatsApp o compartidos requieren
+            revisión. También se deriva una solicitud cuando no hay horas disponibles.
+          </p>
+        </section>
+      </div>
+      <p class="automation-note">
+        Los botones interactivos dependen de la versión y configuración del proveedor de WhatsApp.
+        Las opciones numeradas se pueden responder siempre por texto.
+      </p>
+    </section>
   }
 </section>
 
 @if (connectionDialog()) {
-  <button type="button" class="scrim" tabindex="-1" aria-label="Cerrar conexión de WhatsApp" (click)="closeConnectionDialog()"></button>
-  <aside appModal class="dialog connection-dialog" aria-labelledby="whatsapp-connection-title" (modalDismiss)="closeConnectionDialog()">
+  <button
+    type="button"
+    class="scrim"
+    tabindex="-1"
+    aria-label="Cerrar conexión de WhatsApp"
+    (click)="closeConnectionDialog()"
+  ></button>
+  <aside
+    appModal
+    class="dialog connection-dialog"
+    aria-labelledby="whatsapp-connection-title"
+    (modalDismiss)="closeConnectionDialog()"
+  >
     <header>
       <div>
-        <small>Evolution API</small>
+        <small>{{ session().provider === 'meta' ? 'Meta Cloud API' : 'Evolution API' }}</small>
         <h2 id="whatsapp-connection-title">Conexión de WhatsApp</h2>
       </div>
-      <button type="button" aria-label="Cerrar conexión de WhatsApp" (click)="closeConnectionDialog()"><svg lucideX></svg></button>
+      <button
+        type="button"
+        aria-label="Cerrar conexión de WhatsApp"
+        (click)="closeConnectionDialog()"
+      >
+        <svg lucideX></svg>
+      </button>
     </header>
     <div class="connection-body">
       <span class="status-badge" [attr.data-status]="session().status">{{
@@ -280,31 +570,40 @@
         <h3>WhatsApp está conectado</h3>
         <p>
           {{
-            session().phone
-              ? '+' + session().phone
-              : 'La sesión está lista para enviar y recibir mensajes.'
+            session().provider === 'meta'
+              ? 'La cuenta empresarial está lista para enviar y recibir mensajes.'
+              : session().phone
+                ? '+' + session().phone
+                : 'La sesión está lista para enviar y recibir mensajes.'
           }}
         </p>
       } @else {
-        @if (session().qrCode) {
-          <img [src]="session().qrCode" alt="Código QR para conectar WhatsApp" />
-        }
-        @if (session().pairingCode) {
-          <p class="pairing">
-            Código: <strong>{{ session().pairingCode }}</strong>
+        @if (session().provider === 'meta') {
+          <p>
+            La conexión se configura con el número empresarial, el token y el webhook desde Meta
+            Business. Solicita al administrador revisar los secretos de Supabase.
           </p>
-        }
-        <p>
-          En tu teléfono abre WhatsApp → Dispositivos vinculados → Vincular dispositivo y escanea el
-          QR.
-        </p>
-        @if (canWrite()) {
-          <button class="primary" (click)="connect()" [disabled]="saving()">
-            <svg lucideRefreshCw></svg
-            >{{ session().qrCode ? 'Generar otro QR' : 'Conectar y generar QR' }}
-          </button>
         } @else {
-          <p>Tu usuario puede consultar los chats, pero no administrar la conexión.</p>
+          @if (session().qrCode) {
+            <img [src]="session().qrCode" alt="Código QR para conectar WhatsApp" />
+          }
+          @if (session().pairingCode) {
+            <p class="pairing">
+              Código: <strong>{{ session().pairingCode }}</strong>
+            </p>
+          }
+          <p>
+            En tu teléfono abre WhatsApp → Dispositivos vinculados → Vincular dispositivo y escanea
+            el QR.
+          </p>
+          @if (canWrite()) {
+            <button class="primary" (click)="connect()" [disabled]="saving()">
+              <svg lucideRefreshCw></svg
+              >{{ session().qrCode ? 'Generar otro QR' : 'Conectar y generar QR' }}
+            </button>
+          } @else {
+            <p>Tu usuario puede consultar los chats, pero no administrar la conexión.</p>
+          }
         }
       }
       @if (session().detail && session().status === 'ERROR') {
@@ -315,18 +614,40 @@
 }
 
 @if (composeDialog()) {
-  <button type="button" class="scrim" tabindex="-1" aria-label="Cerrar nuevo mensaje" [disabled]="saving()" (click)="closeComposeDialog()"></button>
-  <aside appModal class="dialog compose-dialog" aria-labelledby="whatsapp-compose-title" [modalDismissDisabled]="saving()" (modalDismiss)="closeComposeDialog()">
+  <button
+    type="button"
+    class="scrim"
+    tabindex="-1"
+    aria-label="Cerrar nuevo mensaje"
+    [disabled]="saving()"
+    (click)="closeComposeDialog()"
+  ></button>
+  <aside
+    appModal
+    class="dialog compose-dialog"
+    aria-labelledby="whatsapp-compose-title"
+    [modalDismissDisabled]="saving()"
+    (modalDismiss)="closeComposeDialog()"
+  >
     <header>
       <div>
         <small>WhatsApp</small>
         <h2 id="whatsapp-compose-title">Nuevo mensaje</h2>
       </div>
-      <button type="button" aria-label="Cerrar nuevo mensaje" [disabled]="saving()" (click)="closeComposeDialog()"><svg lucideX></svg></button>
+      <button
+        type="button"
+        aria-label="Cerrar nuevo mensaje"
+        [disabled]="saving()"
+        (click)="closeComposeDialog()"
+      >
+        <svg lucideX></svg>
+      </button>
     </header>
     <form [formGroup]="composeForm" (ngSubmit)="sendNew()">
       @if (composeError()) {
-        <div class="notice error" role="alert"><svg lucideAlertTriangle></svg>{{ composeError() }}</div>
+        <div class="notice error" role="alert">
+          <svg lucideAlertTriangle></svg>{{ composeError() }}
+        </div>
       }
       <label
         >Paciente

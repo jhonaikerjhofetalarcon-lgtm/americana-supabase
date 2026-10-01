@@ -54,6 +54,11 @@ Guarde en **Supabase Secrets**, nunca en Angular ni Git: `EVOLUTION_API_URL` (el
 
 Despliegue migraciones y funciones primero en ensayo. En producción, registre el cron de `whatsapp-dispatch` con el secreto de Vault y verifique el **HTTP** en `net._http_response`, no solo el estado de `cron.job_run_details`.
 
+Para la reserva por WhatsApp aplique `202609290001_whatsapp_self_booking.sql` antes de actualizar
+`whatsapp-webhook` y `whatsapp-dispatch`. Las opciones numeradas funcionan por texto. El secreto
+opcional `EVOLUTION_INTERACTIVE_BUTTONS=true` activa botones solo tras verificar en teléfonos reales
+que la versión de Evolution y el canal WhatsApp los entregan y devuelven sus respuestas.
+
 ## 5. Cambio controlado y pruebas
 
 La instalación de esta carpeta usa volúmenes nuevos. **No conserva automáticamente** los chats, la base ni el QR de Evolution local. Antes de iniciarla decida si migrará esos volúmenes con respaldo verificado o si volverá a vincular WhatsApp por QR. No ejecute `docker compose down -v` sobre datos clínicos o chats.

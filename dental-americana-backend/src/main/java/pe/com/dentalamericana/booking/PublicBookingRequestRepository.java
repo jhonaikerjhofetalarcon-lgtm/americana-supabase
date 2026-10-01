@@ -1,1 +1,0 @@
-package pe.com.dentalamericana.booking;import org.springframework.data.jpa.repository.JpaRepository;import java.util.List;public interface PublicBookingRequestRepository extends JpaRepository<PublicBookingRequest,Long>{List<PublicBookingRequest>findAllByOrderByCreatedAtDesc();List<PublicBookingRequest>findAllByEstadoOrderByCreatedAtDesc(BookingRequestStatus status);}

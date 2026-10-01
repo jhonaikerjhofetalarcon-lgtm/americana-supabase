@@ -1,6 +1,8 @@
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { timeout } from 'rxjs';
+import { READ_REQUEST_TIMEOUT_MS } from '../../../../core/supabase/request-timeout';
 import { Router, RouterLink } from '@angular/router';
 import {
   LucideAlertTriangle,
@@ -59,8 +61,9 @@ export class BookingRequests implements OnInit {
   load() {
     const requestId = ++this.loadRequestId;
     this.loading.set(true);
+    this.error.set('');
     this.api.list(this.filter() || undefined)
-      .pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      .pipe(timeout({ first: READ_REQUEST_TIMEOUT_MS }), takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (r) => {
         if (requestId !== this.loadRequestId) return;
         this.items.set(r);

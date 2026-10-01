@@ -52,3 +52,10 @@ export interface TreatmentPlan {
   version: number;
   items: TreatmentItem[];
 }
+export interface SignedBudget {
+  plan: TreatmentPlan;
+  signatureData: string;
+  signedAt: string;
+  registeredBy: number;
+  currentStatus: PlanStatus;
+}

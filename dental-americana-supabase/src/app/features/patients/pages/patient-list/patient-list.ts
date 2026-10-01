@@ -1,6 +1,8 @@
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { timeout } from 'rxjs';
+import { READ_REQUEST_TIMEOUT_MS } from '../../../../core/supabase/request-timeout';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import {
   LucideAlertTriangle, LucideChevronLeft, LucideChevronRight, LucideFileSearch,
@@ -80,7 +82,7 @@ export class PatientList implements OnInit {
       active: this.active() === 'all' ? undefined : this.active() === 'true',
       sex: this.sex(), minAge: this.minAge(), maxAge: this.maxAge(),
       page: this.page(), size: 20, sort: 'fullName', direction: 'asc',
-    }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    }).pipe(timeout({ first: READ_REQUEST_TIMEOUT_MS }), takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (response) => {
         if (requestId !== this.loadRequestId) return;
         this.result.set(response);

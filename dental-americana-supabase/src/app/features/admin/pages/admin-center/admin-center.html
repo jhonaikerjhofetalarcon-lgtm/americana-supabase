@@ -55,6 +55,7 @@
                   </div>
                   <i>{{ u.active ? 'Activo' : 'Inactivo' }}</i>
                 </header>
+                <strong class="profile-name">{{ profileName(u.roles) }}</strong>
                 <div class="roles">
                   @for (r of u.roles; track r) {
                     <span>{{ label(r) }}</span>
@@ -293,8 +294,29 @@
         ><input type="email" formControlName="email" autocomplete="email" />
         @if (userForm.controls.email.touched && userForm.controls.email.invalid) {
           <small class="field-error">Ingresa un correo válido o deja este campo vacío.</small>
-        }</label
-      ><label
+        }
+      </label>
+      <fieldset class="profile-picker">
+        <legend>Perfil de acceso</legend>
+        <p>
+          Elige según las tareas reales de la persona. Puedes crear otros perfiles más adelante.
+        </p>
+        <div>
+          @for (profile of staffProfiles; track profile.code) {
+            <label [class.selected]="userForm.controls.profile.value === profile.code">
+              <input type="radio" formControlName="profile" [value]="profile.code" />
+              <span>
+                <strong>{{ profile.name }}</strong>
+                <small>{{ profile.description }}</small>
+              </span>
+              @if (profile.code === 'PROPIETARIO_ODONTOLOGO') {
+                <i>Recomendado si trabaja solo</i>
+              }
+            </label>
+          }
+        </div>
+      </fieldset>
+      <label
         >Contraseña temporal<input
           type="password"
           formControlName="password"
@@ -305,7 +327,8 @@
         }
       </label>
       <p class="note">
-        <svg lucideShieldCheck></svg>Este usuario tendrá el único rol operativo: odontólogo.
+        <svg lucideShieldCheck></svg>El perfil propietario combina Administrador y Odontólogo para
+        permitir la gestión completa del consultorio y las aprobaciones clínicas.
       </p>
       <button class="primary submit" [disabled]="saving()">Crear usuario</button>
     </form>

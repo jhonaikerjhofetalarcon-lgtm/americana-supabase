@@ -7,6 +7,7 @@ import {
   computed,
   inject,
   signal,
+  viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -27,9 +28,13 @@ import {
   LucideShieldAlert,
   LucideStethoscope,
 } from '@lucide/angular';
-import { forkJoin } from 'rxjs';
+import { catchError, forkJoin, of, timeout } from 'rxjs';
+import { READ_REQUEST_TIMEOUT_MS } from '../../../../core/supabase/request-timeout';
 import { AuthService } from '../../../../core/auth/auth.service';
-import { canLeaveEditor, protectBeforeUnload } from '../../../../core/navigation/pending-changes.guard';
+import {
+  canLeaveEditor,
+  protectBeforeUnload,
+} from '../../../../core/navigation/pending-changes.guard';
 import { SupabaseErrorService } from '../../../../core/supabase/supabase-error.service';
 import { AppointmentApiService } from '../../../appointments/data-access/appointment-api.service';
 import { Appointment } from '../../../appointments/models/appointment.models';
@@ -37,14 +42,20 @@ import { PatientApiService } from '../../../patients/data-access/patient-api.ser
 import { PatientDetail, PatientSummary } from '../../../patients/models/patient.models';
 import { ClinicalApiService } from '../../data-access/clinical-api.service';
 import { ClinicalEncounter, ClinicalPayload } from '../../models/clinical.models';
+import { TreatmentPlanPage } from '../../../treatments/pages/treatment-plan/treatment-plan';
+import { OdontogramEditor } from '../../../odontogram/pages/odontogram-editor/odontogram-editor';
 
 type ClinicalTab = 'anamnesis' | 'vitals' | 'exam' | 'assessment' | 'closure';
+type AttentionSection = 'history' | 'odontogram' | 'plan';
+const CLINICAL_TABS: ClinicalTab[] = ['anamnesis', 'vitals', 'exam', 'assessment', 'closure'];
 
 @Component({
   selector: 'app-clinical-workspace',
   host: { '(window:beforeunload)': 'beforeUnload($event)' },
   imports: [
     ReactiveFormsModule,
+    TreatmentPlanPage,
+    OdontogramEditor,
     RouterLink,
     DatePipe,
     LucideActivity,
@@ -85,11 +96,19 @@ export class ClinicalWorkspace implements OnInit {
   readonly error = signal('');
   readonly success = signal('');
   readonly tab = signal<ClinicalTab>('anamnesis');
+  readonly tabNumber = computed(() => CLINICAL_TABS.indexOf(this.tab()) + 1);
+  readonly section = signal<AttentionSection>('history');
+  readonly planEditor = viewChild(TreatmentPlanPage);
+  readonly odontogramEditor = viewChild(OdontogramEditor);
   readonly searchResults = signal<PatientSummary[]>([]);
   readonly searching = signal(false);
+  readonly searchMessage = signal('');
+  readonly walkInEncounters = computed(() =>
+    this.encounters().filter((item) => !item.appointmentId && item.status !== 'ANULADA'),
+  );
+  readonly workdayWarning = signal('');
   readonly canWrite = signal(this.auth.hasPermission('CLINICA_ESCRIBIR'));
   readonly canApprove = signal(this.auth.hasPermission('CLINICA_APROBAR'));
-  readonly canFinance = this.auth.hasPermission('FINANZA_LEER');
   readonly canSchedule = this.auth.hasPermission('CITA_ESCRIBIR');
   readonly canTreatment = this.auth.hasPermission('TRATAMIENTO_LEER');
   private searchTimer?: ReturnType<typeof setTimeout>;
@@ -100,21 +119,31 @@ export class ClinicalWorkspace implements OnInit {
   readonly activeAllergies = computed(
     () => this.patient()?.allergies.filter((item) => item.status === 'ACTIVA') ?? [],
   );
+  readonly relevantHistories = computed(
+    () => this.patient()?.histories.filter((item) =>
+      ['MEDICO', 'QUIRURGICO'].includes(item.type) && item.status !== 'RESUELTO',
+    ) ?? [],
+  );
+  readonly currentMedications = computed(
+    () => this.patient()?.medications.filter((item) => item.current) ?? [],
+  );
   readonly worklist = computed(() =>
     this.appointments().filter(
       (item) => !['CANCELADA', 'NO_ASISTIO', 'COMPLETADA'].includes(item.status),
     ),
   );
   completion(): number {
-    const form = this.form.getRawValue();
-    const required = [
-      form.consultationReason,
-      form.dentalExam,
-      form.diagnosis,
-      form.workPlan,
-      form.patientConsent,
-    ];
-    return Math.round((required.filter(Boolean).length / required.length) * 100);
+    return Math.round(((5 - this.missingRequirements().length) / 5) * 100);
+  }
+  missingRequirements(): { label: string; tab: ClinicalTab }[] {
+    const value = this.form.getRawValue();
+    const missing: { label: string; tab: ClinicalTab }[] = [];
+    if (!value.consultationReason?.trim()) missing.push({ label: 'Motivo de consulta', tab: 'anamnesis' });
+    if (!value.dentalExam?.trim()) missing.push({ label: 'Examen odontológico', tab: 'exam' });
+    if (!value.diagnosis?.trim()) missing.push({ label: 'Diagnóstico', tab: 'assessment' });
+    if (!value.workPlan?.trim()) missing.push({ label: 'Plan de trabajo', tab: 'assessment' });
+    if (!value.patientConsent) missing.push({ label: 'Conformidad del paciente', tab: 'closure' });
+    return missing;
   }
 
   readonly form = this.fb.group({
@@ -158,10 +187,14 @@ export class ClinicalWorkspace implements OnInit {
     this.loadWorkday();
     const encounterId = Number(this.route.snapshot.queryParamMap.get('encounterId'));
     if (Number.isSafeInteger(encounterId) && encounterId > 0) {
-      this.clinicalApi.get(encounterId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-        next: (encounter) => this.open(encounter),
-        error: (error: unknown) => this.error.set(this.errors.toUserMessage(error, 'No se pudo recuperar la atención.')),
-      });
+      this.clinicalApi
+        .get(encounterId)
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe({
+          next: (encounter) => this.open(encounter),
+          error: (error: unknown) =>
+            this.error.set(this.errors.toUserMessage(error, 'No se pudo recuperar la atención.')),
+        });
       return;
     }
     const appointmentId = Number(this.route.snapshot.queryParamMap.get('appointmentId'));
@@ -189,12 +222,24 @@ export class ClinicalWorkspace implements OnInit {
     const end = new Date(start);
     end.setDate(end.getDate() + 1);
     this.loading.set(true);
-    this.error.set('');
+    this.workdayWarning.set('');
     forkJoin({
-      appointments: this.appointmentApi.list(start.toISOString(), end.toISOString()),
-      encounters: this.clinicalApi.search(start.toISOString(), end.toISOString()),
+      appointments: this.appointmentApi.list(start.toISOString(), end.toISOString()).pipe(
+        catchError(() => {
+          this.workdayWarning.set('No se pudieron cargar las citas. Actualiza para reintentar.');
+          return of([] as Appointment[]);
+        }),
+      ),
+      encounters: this.clinicalApi.search(start.toISOString(), end.toISOString()).pipe(
+        catchError(() => {
+          this.workdayWarning.set(
+            'No se pudo consultar la jornada clínica. Actualiza para reintentar.',
+          );
+          return of([] as ClinicalEncounter[]);
+        }),
+      ),
     })
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(timeout({ first: READ_REQUEST_TIMEOUT_MS }), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: ({ appointments, encounters }) => {
           if (requestId !== this.workdayRequestId) return;
@@ -229,22 +274,25 @@ export class ClinicalWorkspace implements OnInit {
     clearTimeout(this.searchTimer);
     this.searchResults.set([]);
     this.searching.set(false);
+    this.searchMessage.set('');
     if (query.trim().length < 2) return;
     this.searchTimer = setTimeout(() => {
       this.searching.set(true);
       this.patientApi
         .search({ q: query.trim(), active: true, page: 0, size: 6 })
-        .pipe(takeUntilDestroyed(this.destroyRef))
+        .pipe(timeout({ first: READ_REQUEST_TIMEOUT_MS }), takeUntilDestroyed(this.destroyRef))
         .subscribe({
           next: (result) => {
             if (requestId !== this.searchRequestId) return;
             this.searchResults.set(result.content);
+            if (!result.content.length) this.searchMessage.set('No hay pacientes que coincidan con la búsqueda.');
             this.searching.set(false);
           },
           error: () => {
             if (requestId !== this.searchRequestId) return;
             this.searching.set(false);
             this.searchResults.set([]);
+            this.searchMessage.set('No se pudo buscar al paciente. Vuelve a escribir para reintentar.');
           },
         });
     }, 250);
@@ -252,6 +300,13 @@ export class ClinicalWorkspace implements OnInit {
 
   startWalkIn(patient: PatientSummary): void {
     this.searchResults.set([]);
+    const draft = this.encounters().find((item) =>
+      item.patientId === patient.id && !item.appointmentId && item.status === 'BORRADOR',
+    );
+    if (draft) {
+      this.open(draft);
+      return;
+    }
     this.start(patient.id);
   }
 
@@ -263,6 +318,7 @@ export class ClinicalWorkspace implements OnInit {
   private displayEncounter(encounter: ClinicalEncounter): void {
     const requestId = ++this.patientRequestId;
     this.current.set(encounter);
+    this.section.set('history');
     this.tab.set('anamnesis');
     this.error.set('');
     this.success.set('');
@@ -270,7 +326,7 @@ export class ClinicalWorkspace implements OnInit {
     this.patch(encounter);
     this.patientApi
       .get(encounter.patientId)
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(timeout({ first: READ_REQUEST_TIMEOUT_MS }), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (patient) => {
           if (requestId === this.patientRequestId) this.patient.set(patient);
@@ -288,27 +344,66 @@ export class ClinicalWorkspace implements OnInit {
     if (!canLeaveEditor(this)) return;
     this.patientRequestId++;
     this.current.set(null);
+    this.section.set('history');
     this.patient.set(null);
     this.form.reset();
     this.clearMessages();
   }
+  backFromRecord(): void {
+    if (this.section() !== 'history') this.setSection('history');
+    else this.close();
+  }
   setTab(tab: ClinicalTab): void {
+    if (this.error().startsWith('Para finalizar faltan:')) this.error.set('');
     this.tab.set(tab);
+  }
+  moveTab(direction: -1 | 1): void {
+    const next = CLINICAL_TABS[this.tabNumber() - 1 + direction];
+    if (!next) return;
+    this.setTab(next);
+    requestAnimationFrame(() =>
+      document.querySelector('.record-tabs')?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+    );
+  }
+
+  setSection(section: AttentionSection): void {
+    if (this.section() === section || this.isSavingChanges()) return;
+    if (this.section() === 'history' && this.current()?.status === 'BORRADOR' && this.form.dirty) {
+      this.save(section);
+      return;
+    }
+    const editor = this.section() === 'plan' ? this.planEditor() : this.odontogramEditor();
+    if (editor && !canLeaveEditor(editor)) return;
+    this.error.set('');
+    this.section.set(section);
   }
 
   hasUnsavedChanges(): boolean {
-    return this.current()?.status === 'BORRADOR' && this.form.dirty;
+    return (
+      (this.current()?.status === 'BORRADOR' && this.form.dirty) ||
+      (this.planEditor()?.hasUnsavedChanges() ?? false) ||
+      (this.odontogramEditor()?.hasUnsavedChanges() ?? false)
+    );
   }
-  isSavingChanges(): boolean { return this.saving(); }
-  beforeUnload(event: Event): void { protectBeforeUnload(event, this); }
+  isSavingChanges(): boolean {
+    return (
+      this.saving() ||
+      (this.planEditor()?.isSavingChanges() ?? false) ||
+      (this.odontogramEditor()?.isSavingChanges() ?? false)
+    );
+  }
+  beforeUnload(event: Event): void {
+    protectBeforeUnload(event, this);
+  }
 
-  save(): void {
+  save(nextSection?: AttentionSection, finishAfterSave = false): void {
     const current = this.current();
     if (!current || current.status !== 'BORRADOR') return;
     if (!this.canWrite() || this.saving()) return;
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       this.error.set('Revisa los valores clínicos fuera de rango.');
+      this.showFirstInvalidTab();
       return;
     }
     this.saving.set(true);
@@ -323,6 +418,8 @@ export class ClinicalWorkspace implements OnInit {
           this.saving.set(false);
           this.success.set('Borrador clínico guardado y versionado.');
           this.replaceEncounter(updated);
+          if (finishAfterSave) this.finish(updated);
+          else if (nextSection) this.section.set(nextSection);
         },
         error: (error: unknown) => this.handleError(error, 'No se pudo guardar el borrador.'),
       });
@@ -332,12 +429,16 @@ export class ClinicalWorkspace implements OnInit {
     const current = this.current();
     if (!current || !this.canApprove()) return;
     if (current.status !== 'BORRADOR' || this.saving()) return;
-    if (this.form.dirty) {
-      this.error.set('Guarda los cambios antes de finalizar la atención.');
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      this.error.set('Revisa los valores clínicos fuera de rango.');
+      this.showFirstInvalidTab();
       return;
     }
-    if (this.completion() < 100) {
-      this.error.set('Completa motivo, examen odontológico, diagnóstico, plan y conformidad.');
+    const missing = this.missingRequirements();
+    if (missing.length) {
+      this.tab.set(missing[0].tab);
+      this.error.set(`Para finalizar faltan: ${missing.map((item) => item.label).join(', ')}.`);
       return;
     }
     if (
@@ -346,6 +447,13 @@ export class ClinicalWorkspace implements OnInit {
       )
     )
       return;
+    if (this.form.dirty) {
+      this.save(undefined, true);
+      return;
+    }
+    this.finish(current);
+  }
+  private finish(current: ClinicalEncounter): void {
     this.saving.set(true);
     this.clearMessages();
     this.clinicalApi
@@ -358,6 +466,7 @@ export class ClinicalWorkspace implements OnInit {
           this.saving.set(false);
           this.success.set('Historia clínica finalizada y aprobada.');
           this.replaceEncounter(updated);
+          this.loadWorkday();
         },
         error: (error: unknown) => this.handleError(error, 'No se pudo finalizar la atención.'),
       });
@@ -442,7 +551,7 @@ export class ClinicalWorkspace implements OnInit {
       },
       { emitEvent: false },
     );
-    if (item.status !== 'BORRADOR') this.form.disable({ emitEvent: false });
+    if (item.status !== 'BORRADOR' || !this.canWrite()) this.form.disable({ emitEvent: false });
     else this.form.enable({ emitEvent: false });
     this.form.markAsPristine();
   }
@@ -450,6 +559,29 @@ export class ClinicalWorkspace implements OnInit {
     this.encounters.update((items) =>
       items.map((item) => (item.id === updated.id ? updated : item)),
     );
+  }
+  private showFirstInvalidTab(): void {
+    const controls = this.form.controls;
+    const invalid = (names: (keyof typeof controls)[]) =>
+      names.some((name) => controls[name].invalid);
+    if (invalid(['consultationReason', 'illnessDuration', 'signsSymptoms', 'chronologicalStory']))
+      this.tab.set('anamnesis');
+    else if (
+      invalid([
+        'systolicPressure',
+        'diastolicPressure',
+        'pulse',
+        'temperature',
+        'respiratoryRate',
+        'weightKg',
+        'heightCm',
+      ])
+    )
+      this.tab.set('vitals');
+    else if (controls.generalExam.invalid || controls.dentalExam.invalid) this.tab.set('exam');
+    else if (controls.diagnosis.invalid || controls.workPlan.invalid || controls.prognosis.invalid)
+      this.tab.set('assessment');
+    else this.tab.set('closure');
   }
   private handleError(error: unknown, fallback: string): void {
     this.saving.set(false);

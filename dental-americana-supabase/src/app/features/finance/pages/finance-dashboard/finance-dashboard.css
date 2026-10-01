@@ -580,3 +580,4 @@
 .patient-context > div { display: grid; gap: 5px; flex: 1; min-width: 200px; }
 .patient-context span { font-size: .72rem; color: #587583; }
 .patient-context a { color: #126e84; text-underline-offset: 3px; padding: 8px; }
+.payment-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.table .voided{color:#a43c47}.table .void-button{color:#a43c47;background:#fff2f3;border-color:#edc9cf;padding:8px}.void-payment{font-size:.85rem;line-height:1.6}.void-payment>p{margin:12px 0}.void-payment label{display:grid;gap:8px;margin:16px 0}.void-payment textarea{width:100%;padding:12px;border:1px solid #ccdae1;border-radius:10px;font:inherit}.void-payment .void-confirm{display:flex;align-items:flex-start;gap:10px}.void-confirm input{margin-top:5px;width:auto}.modal{overflow-y:auto;max-height:95vh}

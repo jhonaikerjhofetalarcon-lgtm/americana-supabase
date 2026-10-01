@@ -1,7 +1,0 @@
-# Override for a database already used with the local/demo profile (includes V13).
-# Reuses this project's volumes; does not erase or reset patient data.
-services:
-  backend:
-    environment:
-      SPRING_PROFILES_ACTIVE: local
-      WHATSAPP_ENABLED: ${WHATSAPP_ENABLED:-false}

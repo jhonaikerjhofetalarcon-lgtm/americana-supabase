@@ -3,9 +3,12 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  ElementRef,
   OnInit,
+  ViewChild,
   computed,
   inject,
+  input,
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -29,10 +32,11 @@ import {
   LucideStethoscope,
   LucideTrash2,
 } from '@lucide/angular';
-import { Observable } from 'rxjs';
+import { Observable, timeout } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { protectBeforeUnload } from '../../../../core/navigation/pending-changes.guard';
 import { SupabaseErrorService } from '../../../../core/supabase/supabase-error.service';
+import { READ_REQUEST_TIMEOUT_MS } from '../../../../core/supabase/request-timeout';
 import { ClinicalApiService } from '../../../clinical/data-access/clinical-api.service';
 import { ClinicalEncounter } from '../../../clinical/models/clinical.models';
 import { OdontogramApiService } from '../../data-access/odontogram-api.service';
@@ -40,6 +44,7 @@ import {
   CONDITION_OPTIONS,
   conditionColor,
   centerSurfaceFor,
+  surfaceName,
 } from '../../models/odontogram-presentation';
 import { ToothSurfaceMap } from '../../ui/tooth-surface-map/tooth-surface-map';
 import {
@@ -80,6 +85,7 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class OdontogramEditor implements OnInit {
+  @ViewChild('markingToolbar') private markingToolbar?: ElementRef<HTMLElement>;
   private readonly fb = inject(FormBuilder).nonNullable;
   private readonly api = inject(OdontogramApiService);
   private readonly clinical = inject(ClinicalApiService);
@@ -89,13 +95,16 @@ export class OdontogramEditor implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   private readonly errors = inject(SupabaseErrorService);
   readonly encounter = signal<ClinicalEncounter | null>(null);
+  readonly embeddedEncounterId = input<number | null>(null);
   readonly items = signal<Odontogram[]>([]);
   readonly current = signal<Odontogram | null>(null);
   readonly dentition = signal<DentitionType>('PERMANENTE');
   readonly selectedTooth = signal('11');
   readonly loading = signal(true);
+  readonly loadFailed = signal(false);
   readonly saving = signal(false);
   readonly quickMark = signal(false);
+  readonly showAllConditions = signal(false);
   readonly focusedQuadrant = signal(0);
   readonly error = signal('');
   readonly success = signal('');
@@ -187,6 +196,12 @@ export class OdontogramEditor implements OnInit {
     };
   });
   readonly conditionOptions = CONDITION_OPTIONS;
+  visibleConditions(): typeof CONDITION_OPTIONS {
+    if (this.showAllConditions()) return this.conditionOptions;
+    const common = this.conditionOptions.slice(0, 4);
+    const selected = this.conditionOptions.find((option) => option.value === this.form.controls.condition.value);
+    return selected && !common.includes(selected) ? [...common, selected] : common;
+  }
   readonly form = this.fb.group({
     surface: this.fb.control<ToothSurface>('GENERAL'),
     condition: this.fb.control<ToothCondition>('CARIES'),
@@ -195,15 +210,21 @@ export class OdontogramEditor implements OnInit {
   });
   readonly observation = this.fb.control('', Validators.maxLength(4000));
   ngOnInit(): void {
-    const id = Number(this.route.snapshot.paramMap.get('encounterId'));
+    this.retry();
+  }
+  retry(): void {
+    const id =
+      this.embeddedEncounterId() ?? Number(this.route.snapshot.paramMap.get('encounterId'));
     if (!id) {
       void this.router.navigate(['/sistema/atencion']);
       return;
     }
     this.loading.set(true);
+    this.loadFailed.set(false);
+    this.error.set('');
     this.clinical
       .get(id)
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(timeout({ first: READ_REQUEST_TIMEOUT_MS }), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (e) => {
           this.encounter.set(e);
@@ -211,12 +232,18 @@ export class OdontogramEditor implements OnInit {
         },
         error: (error: unknown) => {
           this.loading.set(false);
+          this.loadFailed.set(true);
           this.error.set(this.errors.toUserMessage(error, 'No se encontró la atención clínica.'));
         },
       });
   }
   switchDentition(type: DentitionType): void {
     if (this.saving()) return;
+    if (type !== this.dentition() && this.hasPendingFindingDetail()) {
+      this.clear();
+      this.error.set('Registra o borra el detalle del hallazgo antes de cambiar de dentición.');
+      return;
+    }
     if (type !== this.dentition() && this.hasPendingObservation()) {
       this.clear();
       this.error.set('Guarda o descarta la observación general antes de cambiar de dentición.');
@@ -267,7 +294,8 @@ export class OdontogramEditor implements OnInit {
       });
   }
   selectTooth(tooth: string): void {
-    if (this.saving()) return;
+    if (this.saving() || !this.canChangeTooth(tooth)) return;
+    if (tooth === this.selectedTooth()) return;
     this.selectedTooth.set(tooth);
     this.form.controls.surface.setValue('GENERAL');
     this.form.controls.observation.setValue('');
@@ -279,11 +307,29 @@ export class OdontogramEditor implements OnInit {
   conditionColor(condition: ToothCondition): string {
     return conditionColor(condition);
   }
+  conditionLabel(condition: ToothCondition): string {
+    return (
+      this.conditionOptions.find((option) => option.value === condition)?.label ??
+      this.label(condition)
+    );
+  }
+  treatmentStateLabel(state: TreatmentState): string {
+    return state.charAt(0) + state.slice(1).toLowerCase();
+  }
+  surfaceName(tooth: string, surface: ToothSurface): string {
+    return surface === 'GENERAL' ? 'Pieza completa' : surfaceName(tooth, surface);
+  }
   focusQuadrant(quadrant: number): void {
     if (this.saving()) return;
+    const teeth = [
+      ...this.upper().filter((tooth) => !quadrant || ((Number(tooth[0]) - 1) % 4) + 1 === quadrant),
+      ...this.lower().filter((tooth) => !quadrant || ((Number(tooth[0]) - 1) % 4) + 1 === quadrant),
+    ];
+    if (!teeth.includes(this.selectedTooth())) {
+      if (!this.canChangeTooth(teeth[0])) return;
+      this.selectTooth(teeth[0]);
+    }
     this.focusedQuadrant.set(quadrant);
-    const teeth = this.visibleArches().flatMap((arch) => arch.teeth);
-    if (!teeth.includes(this.selectedTooth())) this.selectTooth(teeth[0]);
   }
   moveTooth(direction: number): void {
     const teeth = this.visibleArches().flatMap((arch) => arch.teeth);
@@ -293,6 +339,9 @@ export class OdontogramEditor implements OnInit {
   showDetail(panel: HTMLElement): void {
     panel.scrollIntoView({ block: 'start' });
     panel.focus({ preventScroll: true });
+  }
+  showMarkingToolbar(): void {
+    if (this.markingToolbar) this.showDetail(this.markingToolbar.nativeElement);
   }
   toothDescription(tooth: string): string {
     const quadrant: Record<string, string> = {
@@ -334,19 +383,26 @@ export class OdontogramEditor implements OnInit {
     return centerSurfaceFor(tooth);
   }
   chooseSurface(surface: ToothSurface): void {
-    this.form.controls.surface.setValue(surface);
+    this.form.controls.surface.setValue(this.wholeToothCondition() ? 'GENERAL' : surface);
   }
   chooseCondition(condition: ToothCondition): void {
     this.form.controls.condition.setValue(condition);
+    if (this.wholeToothCondition()) this.form.controls.surface.setValue('GENERAL');
+  }
+  wholeToothCondition(): boolean {
+    return ['AUSENTE', 'EXTRACCION_INDICADA', 'IMPLANTE'].includes(
+      this.form.controls.condition.value,
+    );
   }
   chooseTreatmentState(state: string): void {
     if (state === 'INDICADO' || state === 'EXISTENTE' || state === 'REALIZADO')
       this.form.controls.treatmentState.setValue(state);
   }
   markSurface(tooth: string, surface: ToothSurface): void {
-    if (this.saving()) return;
+    if (this.saving() || !this.canChangeTooth(tooth)) return;
+    if (tooth !== this.selectedTooth()) this.form.controls.observation.setValue('');
     this.selectedTooth.set(tooth);
-    this.form.controls.surface.setValue(surface);
+    this.form.controls.surface.setValue(this.wholeToothCondition() ? 'GENERAL' : surface);
     this.clear();
 
     if (this.quickMark() && this.canWrite() && this.current()?.status === 'BORRADOR') {
@@ -389,7 +445,9 @@ export class OdontogramEditor implements OnInit {
       !this.canWrite() ||
       item.status !== 'BORRADOR' ||
       this.saving() ||
-      !window.confirm(`¿Retirar ${this.label(finding.condition)} de la pieza ${finding.tooth}?`)
+      !window.confirm(
+        `¿Retirar ${this.conditionLabel(finding.condition)} de la pieza ${finding.tooth}?`,
+      )
     )
       return;
     this.run(
@@ -403,11 +461,22 @@ export class OdontogramEditor implements OnInit {
     return !!item && this.observation.value !== (item.generalObservation ?? '');
   }
   hasUnsavedChanges(): boolean {
-    return this.current()?.status === 'BORRADOR' && (this.hasPendingObservation()
-      || !!this.form.controls.observation.value.trim());
+    return (
+      this.current()?.status === 'BORRADOR' &&
+      (this.hasPendingObservation() || this.hasPendingFindingDetail())
+    );
   }
-  isSavingChanges(): boolean { return this.saving(); }
-  beforeUnload(event: Event): void { protectBeforeUnload(event, this); }
+  discardFindingDetail(): void {
+    if (this.saving()) return;
+    this.form.controls.observation.setValue('');
+    this.clear();
+  }
+  isSavingChanges(): boolean {
+    return this.saving();
+  }
+  beforeUnload(event: Event): void {
+    protectBeforeUnload(event, this);
+  }
   discardObservation(): void {
     if (this.saving()) return;
     this.observation.setValue(this.current()?.generalObservation ?? '');
@@ -446,6 +515,11 @@ export class OdontogramEditor implements OnInit {
       this.error.set('Guarda o descarta la observación general antes de aprobar el odontograma.');
       return;
     }
+    if (this.hasPendingFindingDetail()) {
+      this.clear();
+      this.error.set('Registra o borra el detalle del hallazgo antes de aprobar el odontograma.');
+      return;
+    }
     if (
       !window.confirm(
         '¿Confirmas que revisaste todas las piezas y deseas aprobar este odontograma?',
@@ -464,10 +538,11 @@ export class OdontogramEditor implements OnInit {
   private load(id: number): void {
     this.api
       .list(id)
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(timeout({ first: READ_REQUEST_TIMEOUT_MS }), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (items) => {
           this.items.set(items);
+          this.loadFailed.set(false);
           const current = items.find((i) => i.dentitionType === this.dentition());
           if (current) this.setCurrent(current);
           else this.current.set(null);
@@ -475,6 +550,7 @@ export class OdontogramEditor implements OnInit {
         },
         error: (error: unknown) => {
           this.loading.set(false);
+          this.loadFailed.set(true);
           this.error.set(this.errors.toUserMessage(error, 'No se pudo cargar el odontograma.'));
         },
       });
@@ -519,5 +595,14 @@ export class OdontogramEditor implements OnInit {
   private clear(): void {
     this.error.set('');
     this.success.set('');
+  }
+  private hasPendingFindingDetail(): boolean {
+    return !!this.form.controls.observation.value.trim();
+  }
+  private canChangeTooth(tooth: string): boolean {
+    if (tooth === this.selectedTooth() || !this.hasPendingFindingDetail()) return true;
+    this.clear();
+    this.error.set('Registra o borra el detalle del hallazgo antes de cambiar de pieza.');
+    return false;
   }
 }

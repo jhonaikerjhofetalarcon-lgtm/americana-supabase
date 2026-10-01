@@ -14,6 +14,14 @@ export interface Role {
   description: string;
   permissions: string[];
 }
+export type StaffProfile = 'PROPIETARIO_ODONTOLOGO' | 'ODONTOLOGO' | 'RECEPCION' | 'CAJA';
+
+export interface StaffProfileOption {
+  code: StaffProfile;
+  name: string;
+  description: string;
+  roles: readonly string[];
+}
 export interface Setting {
   key: string;
   value: string;

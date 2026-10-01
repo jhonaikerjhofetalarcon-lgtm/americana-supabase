@@ -1,1 +1,0 @@
-package pe.com.dentalamericana.treatment;import org.springframework.data.jpa.repository.JpaRepository;import java.util.List;public interface TreatmentEvolutionRepository extends JpaRepository<TreatmentEvolution,Long>{List<TreatmentEvolution>findAllByItemIdOrderByFechaDesc(Long itemId);}

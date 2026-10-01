@@ -10,6 +10,11 @@
     "test:ci": "ng test --watch=false"
   },
   "private": true,
+  "overrides": {
+    "@angular/build": {
+      "undici": "7.29.1"
+    }
+  },
   "packageManager": "npm@11.9.0",
   "dependencies": {
     "@angular/cdk": "^21.2.14",

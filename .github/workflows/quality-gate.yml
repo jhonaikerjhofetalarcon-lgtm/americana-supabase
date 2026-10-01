@@ -35,7 +35,7 @@ jobs:
         with:
           deno-version: v2.9.6
       - run: deno check supabase/functions/*/index.ts
-      - run: deno test --allow-env supabase/functions/_shared/whatsapp_test.ts supabase/functions/whatsapp-webhook/handler_test.ts
+      - run: deno test --allow-env supabase/functions/_shared/whatsapp_test.ts supabase/functions/whatsapp-webhook/handler_test.ts supabase/functions/copilot-chat/chat_test.ts
 
   whatsapp-database:
     runs-on: ubuntu-latest
@@ -64,7 +64,11 @@ jobs:
             psql -v ON_ERROR_STOP=1 -f "$migration"
           done
           psql -v ON_ERROR_STOP=1 -f supabase/tests/whatsapp-automation.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/tests/whatsapp-self-booking.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/tests/meta-whatsapp-cloud.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/patient-clinical-report.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/tests/signed-advance.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/tests/signed-budget.sql
 
   tracked-secrets:
     runs-on: ubuntu-latest

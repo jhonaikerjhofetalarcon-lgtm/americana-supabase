@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
-import { of, Subject } from 'rxjs';
+import { NEVER, of, Subject } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { PatientApiService } from '../../../patients/data-access/patient-api.service';
 import { PageResponse, PatientDetail, PatientSummary } from '../../../patients/models/patient.models';
@@ -9,6 +9,116 @@ import { BookingRequestApiService } from '../../data-access/booking-request-api.
 import { Appointment, AvailabilitySlot } from '../../models/appointment.models';
 import { BookingRequest } from '../../models/booking-request.models';
 import { Agenda } from './agenda';
+
+describe('Agenda: apertura de pantalla', () => {
+  it('renderiza la agenda y permite abrir nueva cita tras cargar los datos iniciales', async () => {
+    await TestBed.configureTestingModule({
+      imports: [Agenda],
+      providers: [
+        provideRouter([]),
+        { provide: AuthService, useValue: { hasPermission: () => true } },
+        { provide: PatientApiService, useValue: {} },
+        { provide: BookingRequestApiService, useValue: {} },
+        { provide: AppointmentApiService, useValue: {
+          types: () => of([{ id: 2, code: 'CONSULTA', name: 'Consulta', durationMinutes: 30, color: '#123456' }]),
+          professionals: () => of([{ id: 3, fullName: 'Dra. López' }]),
+          list: () => of([]),
+          availability: () => of([]),
+        } },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(Agenda);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Organiza el día');
+    expect(fixture.componentInstance.loading()).toBe(false);
+
+    fixture.componentInstance.openNew();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.appointment-modal')).not.toBeNull();
+  });
+
+  it('muestra las citas aunque la configuración no responda y permite reintentar', async () => {
+    const types = vi.fn().mockReturnValueOnce(NEVER).mockReturnValueOnce(of([
+      { id: 2, code: 'CONSULTA', name: 'Consulta', durationMinutes: 30, color: '#123456' },
+    ]));
+    await TestBed.configureTestingModule({
+      imports: [Agenda],
+      providers: [
+        provideRouter([]),
+        { provide: AuthService, useValue: { hasPermission: () => true } },
+        { provide: PatientApiService, useValue: {} },
+        { provide: BookingRequestApiService, useValue: {} },
+        { provide: AppointmentApiService, useValue: {
+          types,
+          professionals: () => of([{ id: 3, fullName: 'Dra. López' }]),
+          list: () => of([]),
+          availability: () => of([]),
+        } },
+      ],
+    }).compileComponents();
+
+    vi.useFakeTimers();
+    try {
+      const fixture = TestBed.createComponent(Agenda);
+      fixture.detectChanges();
+      expect(fixture.componentInstance.loading()).toBe(false);
+      expect(fixture.nativeElement.textContent).toContain('Día disponible');
+      expect(fixture.componentInstance.canCreate()).toBe(false);
+
+      await vi.advanceTimersByTimeAsync(15001);
+      fixture.detectChanges();
+      expect(fixture.componentInstance.loadingConfiguration()).toBe(false);
+      expect(fixture.componentInstance.configurationError()).toContain('tardó demasiado');
+
+      fixture.componentInstance.loadConfiguration();
+      fixture.detectChanges();
+      expect(fixture.componentInstance.canCreate()).toBe(true);
+      expect(fixture.componentInstance.configurationError()).toBe('');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('sale de la carga y permite actualizar si la lista de citas no responde', async () => {
+    const list = vi.fn().mockReturnValueOnce(NEVER).mockReturnValueOnce(of([]));
+    await TestBed.configureTestingModule({
+      imports: [Agenda],
+      providers: [
+        provideRouter([]),
+        { provide: AuthService, useValue: { hasPermission: () => true } },
+        { provide: PatientApiService, useValue: {} },
+        { provide: BookingRequestApiService, useValue: {} },
+        { provide: AppointmentApiService, useValue: {
+          types: () => of([{ id: 2, code: 'CONSULTA', name: 'Consulta', durationMinutes: 30, color: '#123456' }]),
+          professionals: () => of([{ id: 3, fullName: 'Dra. López' }]),
+          list,
+          availability: () => of([]),
+        } },
+      ],
+    }).compileComponents();
+
+    vi.useFakeTimers();
+    try {
+      const fixture = TestBed.createComponent(Agenda);
+      fixture.detectChanges();
+      expect(fixture.componentInstance.loading()).toBe(true);
+
+      await vi.advanceTimersByTimeAsync(15001);
+      fixture.detectChanges();
+      expect(fixture.componentInstance.loading()).toBe(false);
+      expect(fixture.componentInstance.error()).toContain('tardó demasiado');
+
+      fixture.componentInstance.load();
+      fixture.detectChanges();
+      expect(fixture.componentInstance.loading()).toBe(false);
+      expect(fixture.componentInstance.error()).toBe('');
+      expect(list).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
 
 describe('Agenda: reprogramación', () => {
   const appointment: Appointment = {

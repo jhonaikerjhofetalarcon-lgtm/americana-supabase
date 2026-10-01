@@ -7,6 +7,7 @@ import {
   computed,
   inject,
   signal,
+  viewChildren,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -29,10 +30,14 @@ import {
   LucideWalletCards,
   LucideX,
 } from '@lucide/angular';
-import { forkJoin, Observable } from 'rxjs';
+import { forkJoin, Observable, timeout } from 'rxjs';
+import { READ_REQUEST_TIMEOUT_MS } from '../../../../core/supabase/request-timeout';
+import { canLeaveEditor, protectBeforeUnload } from '../../../../core/navigation/pending-changes.guard';
+import { ModalDirective } from '../../../../shared/ui/modal/modal.directive';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { SupabaseErrorService } from '../../../../core/supabase/supabase-error.service';
 import { FinanceApiService } from '../../data-access/finance-api.service';
+import { PaymentAgreementComponent } from '../../components/payment-agreement/payment-agreement';
 import {
   Account,
   CashSession,
@@ -44,7 +49,10 @@ import {
 type FinanceTab = 'accounts' | 'payments' | 'expenses';
 @Component({
   selector: 'app-finance-dashboard',
+  host: { '(window:beforeunload)': 'beforeUnload($event)' },
   imports: [
+    ModalDirective,
+    PaymentAgreementComponent,
     RouterLink,
     ReactiveFormsModule,
     CurrencyPipe,
@@ -71,6 +79,19 @@ type FinanceTab = 'accounts' | 'payments' | 'expenses';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FinanceDashboardPage implements OnInit {
+  readonly paymentEditors = viewChildren(PaymentAgreementComponent);
+  hasUnsavedChanges(): boolean {
+    return this.paymentEditors().some((editor) => editor.hasUnsavedChanges()) ||
+      (this.modal() === 'void' && this.voidReason.dirty) ||
+      (this.modal() === 'expense' && this.expenseForm.dirty) ||
+      ((this.modal() === 'open' || this.modal() === 'close') && this.cashForm.dirty);
+  }
+  isSavingChanges(): boolean {
+    return this.saving() || this.paymentEditors().some((editor) => editor.isSavingChanges());
+  }
+  beforeUnload(event: Event): void {
+    protectBeforeUnload(event, this);
+  }
   private readonly fb = inject(FormBuilder).nonNullable;
   private readonly api = inject(FinanceApiService);
   private readonly auth = inject(AuthService);
@@ -82,15 +103,27 @@ export class FinanceDashboardPage implements OnInit {
   readonly accounts = signal<Account[]>([]);
   readonly contextPatientId = signal<number | null>(null);
   readonly returnEncounterId = signal<number | null>(null);
-  readonly contextAccounts = computed(() => this.accounts().filter((account) =>
-    !this.contextPatientId() || account.patientId === this.contextPatientId()));
-  readonly contextPayments = computed(() => this.payments().filter((payment) =>
-    !this.contextPatientId() || payment.patientId === this.contextPatientId()));
-  readonly contextPatientName = computed(() => this.contextAccounts()[0]?.patientName
-    ?? this.contextPayments()[0]?.patientName ?? 'Paciente #' + this.contextPatientId());
-  readonly contextBalance = computed(() => this.contextAccounts()
-    .filter((account) => account.status === 'PENDIENTE' || account.status === 'PARCIAL')
-    .reduce((sum, account) => sum + account.balance, 0));
+  readonly contextAccounts = computed(() =>
+    this.accounts().filter(
+      (account) => !this.contextPatientId() || account.patientId === this.contextPatientId(),
+    ),
+  );
+  readonly contextPayments = computed(() =>
+    this.payments().filter(
+      (payment) => !this.contextPatientId() || payment.patientId === this.contextPatientId(),
+    ),
+  );
+  readonly contextPatientName = computed(
+    () =>
+      this.contextAccounts()[0]?.patientName ??
+      this.contextPayments()[0]?.patientName ??
+      'Paciente #' + this.contextPatientId(),
+  );
+  readonly contextBalance = computed(() =>
+    this.contextAccounts()
+      .filter((account) => account.status === 'PENDIENTE' || account.status === 'PARCIAL')
+      .reduce((sum, account) => sum + account.balance, 0),
+  );
   readonly methods = signal<PaymentMethod[]>([]);
   readonly payments = signal<Payment[]>([]);
   readonly expenses = signal<Expense[]>([]);
@@ -101,14 +134,13 @@ export class FinanceDashboardPage implements OnInit {
   readonly error = signal('');
   readonly success = signal('');
   readonly tab = signal<FinanceTab>('accounts');
-  readonly modal = signal<'payment' | 'expense' | 'open' | 'close' | null>(null);
+  readonly modal = signal<'expense' | 'open' | 'close' | 'void' | null>(null);
+  readonly voidTarget = signal<Payment | null>(null);
+  readonly voidReason = this.fb.control('', [Validators.required, Validators.minLength(5), Validators.maxLength(500)]);
+  readonly voidConfirmed = signal(false);
   readonly selectedAccount = signal<Account | null>(null);
+  readonly selectedReceiptPayment = signal<Payment | null>(null);
   readonly canWrite = signal(this.auth.hasPermission('FINANZA_ESCRIBIR'));
-  readonly paymentForm = this.fb.group({
-    methodId: this.fb.control<number | null>(null, Validators.required),
-    amount: [0, Validators.min(0.01)],
-    reference: ['', Validators.maxLength(120)],
-  });
   readonly expenseForm = this.fb.group({
     category: ['Insumos', [Validators.required, Validators.maxLength(80)]],
     description: ['', [Validators.required, Validators.maxLength(500)]],
@@ -125,32 +157,36 @@ export class FinanceDashboardPage implements OnInit {
     this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((query) => {
       const patientId = Number(query.get('patientId'));
       const encounterId = Number(query.get('encounterId'));
-      this.contextPatientId.set(Number.isSafeInteger(patientId) && patientId > 0 ? patientId : null);
-      this.returnEncounterId.set(Number.isSafeInteger(encounterId) && encounterId > 0 ? encounterId : null);
+      this.contextPatientId.set(
+        Number.isSafeInteger(patientId) && patientId > 0 ? patientId : null,
+      );
+      this.returnEncounterId.set(
+        Number.isSafeInteger(encounterId) && encounterId > 0 ? encounterId : null,
+      );
       this.tab.set('accounts');
     });
     this.load();
   }
   downloadReceipt(payment: Payment): void {
-    const content = [
-      'CONSTANCIA ADMINISTRATIVA DE PAGO',
-      `Número: ${payment.receiptNumber}`,
-      `Estado: ${payment.status}`,
-      `Paciente: ${payment.patientName}`,
-      `Plan: ${payment.planCode}`,
-      `Monto: S/ ${payment.amount.toFixed(2)}`,
-      `Método: ${payment.paymentMethod}`,
-      `Referencia: ${payment.reference || 'Sin referencia'}`,
-      `Fecha: ${new Date(payment.registeredAt).toLocaleString('es-PE', { timeZone: 'America/Lima' })}`,
-      '',
-      'Esta constancia acredita el registro administrativo; no es un comprobante electrónico SUNAT.',
-    ].join('\n');
-    const url = URL.createObjectURL(new Blob([content], { type: 'text/plain;charset=utf-8' }));
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `${payment.receiptNumber.replace(/[^a-zA-Z0-9_-]/g, '_')}.txt`;
-    anchor.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    this.selectedReceiptPayment.set(payment);
+  }
+  canVoid(payment: Payment): boolean {
+    return this.canWrite() && payment.status === 'REGISTRADO' && this.cash()?.id === payment.cashSessionId &&
+      payment.version !== undefined && !this.loading() && !this.error();
+  }
+  openVoid(payment: Payment): void {
+    if (!this.canVoid(payment) || this.isSavingChanges() || !canLeaveEditor(this)) return;
+    this.voidTarget.set(payment); this.voidReason.reset(''); this.voidConfirmed.set(false);
+    this.modal.set('void'); this.clear();
+  }
+  saveVoid(): void {
+    const payment = this.voidTarget();
+    if (!payment || !this.canWrite() || this.saving() || !this.voidConfirmed()) return;
+    const reason = this.voidReason.value.trim();
+    if (this.voidReason.invalid || reason.length < 5) {
+      this.voidReason.markAsTouched(); this.error.set('Indica un motivo de al menos 5 caracteres.'); return;
+    }
+    this.run(this.api.voidPayment(payment.id, payment.version ?? -1, reason), 'Pago anulado. Se restableció el saldo y quedó registrado el ajuste de caja.');
   }
   load(): void {
     const requestId = ++this.loadRequestId;
@@ -165,12 +201,15 @@ export class FinanceDashboardPage implements OnInit {
       expenses: this.api.expenses(from, to),
       cash: this.api.currentCash(),
     })
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(timeout({ first: READ_REQUEST_TIMEOUT_MS }), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (r) => {
           if (requestId !== this.loadRequestId) return;
           this.dashboard.set(r.dashboard);
           this.accounts.set(r.accounts);
+          this.selectedAccount.update((selected) =>
+            selected ? (r.accounts.find((account) => account.id === selected.id) ?? null) : null,
+          );
           this.methods.set(r.methods);
           this.payments.set(r.payments);
           this.expenses.set(r.expenses);
@@ -187,18 +226,13 @@ export class FinanceDashboardPage implements OnInit {
       });
   }
   openPayment(a: Account): void {
-    if (!this.canWrite() || this.saving()) return;
+    if (!this.canWrite() || this.saving() || this.loading() || this.error()) return;
     if (!this.cash()) {
       this.error.set('Abra la caja antes de registrar pagos.');
       return;
     }
     this.selectedAccount.set(a);
-    this.paymentForm.reset({
-      methodId: this.methods()[0]?.id ?? null,
-      amount: a.balance,
-      reference: '',
-    });
-    this.modal.set('payment');
+    this.selectedReceiptPayment.set(null);
     this.clear();
   }
   openExpense(): void {
@@ -229,27 +263,6 @@ export class FinanceDashboardPage implements OnInit {
     this.cashForm.reset({ amount: this.cash()?.expectedAmount ?? 0, observation: '' });
     this.modal.set('close');
     this.clear();
-  }
-  savePayment(): void {
-    const a = this.selectedAccount();
-    if (!a || !this.cash() || !this.canWrite() || this.saving() || this.paymentForm.invalid) {
-      this.paymentForm.markAllAsTouched();
-      return;
-    }
-    const v = this.paymentForm.getRawValue(),
-      m = this.methods().find((x) => x.id === v.methodId);
-    if (m?.referenceRequired && !v.reference.trim()) {
-      this.error.set('Este método requiere número de operación o referencia.');
-      return;
-    }
-    if (v.amount > a.balance) {
-      this.error.set('El pago no puede superar el saldo.');
-      return;
-    }
-    this.run(
-      this.api.pay(a.id, v.methodId!, v.amount, v.reference.trim() || null),
-      'Pago registrado y constancia generada.',
-    );
   }
   saveExpense(): void {
     if (!this.cash() || !this.canWrite() || this.saving() || this.expenseForm.invalid) {
@@ -325,13 +338,7 @@ export class FinanceDashboardPage implements OnInit {
       });
   }
   closeModal(): void {
-    if (!this.saving()) this.modal.set(null);
-  }
-  methodNeedsReference(): boolean {
-    return (
-      this.methods().find((x) => x.id === this.paymentForm.controls.methodId.value)
-        ?.referenceRequired ?? false
-    );
+    if (canLeaveEditor(this)) this.modal.set(null);
   }
   expenseMethodNeedsReference(): boolean {
     return (

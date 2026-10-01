@@ -10,13 +10,21 @@
         ><svg lucideMessageCircle></svg>Solicitudes web y WhatsApp</a
       >
       @if (canWrite()) {
-        <button class="primary" (click)="openNew()"><svg lucidePlus></svg>Nueva cita</button>
+        <button class="primary" [disabled]="!canCreate()" (click)="openNew()"><svg lucidePlus></svg>Nueva cita</button>
       }
     </div>
   </header>
 
   @if (error() && !modalOpen()) {
     <div class="message error"><svg lucideAlertTriangle></svg>{{ error() }}</div>
+  }
+  @if (configurationError()) {
+    <div class="message error" role="alert">
+      <svg lucideAlertTriangle></svg><span>{{ configurationError() }}</span>
+      <button type="button" [disabled]="loadingConfiguration()" (click)="loadConfiguration()">Reintentar</button>
+    </div>
+  } @else if (loadingConfiguration()) {
+    <div class="message info" role="status"><svg lucideLoaderCircle class="animate-spin"></svg>Cargando opciones para programar citas…</div>
   }
   @if (success()) {
     <div class="message success"><svg lucideCheck></svg>{{ success() }}</div>
@@ -87,7 +95,7 @@
           </div>
         </div>
         @if (canWrite()) {
-          <button class="text-action" (click)="openNew()"><svg lucidePlus></svg>Agregar</button>
+          <button class="text-action" [disabled]="!canCreate()" (click)="openNew()"><svg lucidePlus></svg>Agregar</button>
         }
       </header>
       @if (loading()) {
@@ -162,7 +170,7 @@
               <h3>Día disponible</h3>
               <p>No hay citas que coincidan con los filtros para esta fecha.</p>
               @if (canWrite()) {
-                <button class="primary" (click)="openNew()">
+                <button class="primary" [disabled]="!canCreate()" (click)="openNew()">
                   <svg lucidePlus></svg>Programar primera cita
                 </button>
               }
@@ -366,7 +374,9 @@
             </div>
           } @else {
             <div class="no-slots">
-              <svg lucideClock3></svg>Selecciona odontólogo, tipo y fecha para ver horarios.
+              <svg lucideClock3></svg>{{ form.controls.professionalId.value && form.controls.appointmentTypeId.value && form.controls.date.value
+                ? 'No hay horarios disponibles para esta fecha. Prueba otro día u odontólogo.'
+                : 'Selecciona odontólogo, tipo y fecha para ver horarios.' }}
             </div>
           }
           @if (editing() && selectedStart()) {

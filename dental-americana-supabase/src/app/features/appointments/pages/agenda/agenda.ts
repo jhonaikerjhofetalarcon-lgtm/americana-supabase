@@ -30,9 +30,10 @@ import {
   LucideUserRound,
   LucideX,
 } from '@lucide/angular';
-import { forkJoin, Observable } from 'rxjs';
+import { forkJoin, Observable, TimeoutError, timeout } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { SupabaseErrorService } from '../../../../core/supabase/supabase-error.service';
+import { READ_REQUEST_TIMEOUT_MS } from '../../../../core/supabase/request-timeout';
 import { ModalDirective } from '../../../../shared/ui/modal/modal.directive';
 import { PatientApiService } from '../../../patients/data-access/patient-api.service';
 import { PatientSummary } from '../../../patients/models/patient.models';
@@ -91,6 +92,8 @@ export class Agenda implements OnInit {
   readonly types = signal<AppointmentType[]>([]);
   readonly professionals = signal<Professional[]>([]);
   readonly loading = signal(true);
+  readonly loadingConfiguration = signal(true);
+  readonly configurationError = signal('');
   readonly saving = signal(false);
   readonly error = signal('');
   readonly success = signal('');
@@ -107,6 +110,10 @@ export class Agenda implements OnInit {
   readonly selectedStart = signal('');
   readonly bookingRequest = signal<BookingRequest | null>(null);
   readonly canWrite = signal(this.auth.hasPermission('CITA_ESCRIBIR'));
+  readonly canCreate = computed(() =>
+    this.canWrite() && !this.loadingConfiguration() &&
+    this.types().length > 0 && this.professionals().length > 0,
+  );
   private patientSearchTimer?: ReturnType<typeof setTimeout>;
   private agendaRequestId = 0;
   private patientSearchRequestId = 0;
@@ -161,18 +168,39 @@ export class Agenda implements OnInit {
 
   ngOnInit(): void {
     this.destroyRef.onDestroy(() => clearTimeout(this.patientSearchTimer));
+    this.load();
+    this.loadConfiguration();
+  }
+
+  loadConfiguration(): void {
+    this.loadingConfiguration.set(true);
+    this.configurationError.set('');
     forkJoin({ types: this.api.types(), professionals: this.api.professionals() })
-      .pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      .pipe(timeout({ first: READ_REQUEST_TIMEOUT_MS }), takeUntilDestroyed(this.destroyRef)).subscribe({
       next: ({ types, professionals }) => {
         this.types.set(types);
         this.professionals.set(professionals);
-        this.load();
+        this.loadingConfiguration.set(false);
+        if (!types.length || !professionals.length) {
+          this.configurationError.set(
+            !types.length && !professionals.length
+              ? 'No hay tipos de cita ni odontólogos disponibles para programar.'
+              : !types.length
+                ? 'No hay tipos de cita disponibles para programar.'
+                : 'No hay odontólogos disponibles para programar.',
+          );
+          return;
+        }
         this.loadBookingRequest();
         if (!this.route.snapshot.queryParamMap.has('solicitud')) this.loadPatientContext();
       },
-      error: () => {
-        this.loading.set(false);
-        this.error.set('No se pudo cargar la configuración de la agenda.');
+      error: (error: unknown) => {
+        this.loadingConfiguration.set(false);
+        this.configurationError.set(
+          error instanceof TimeoutError
+            ? 'La configuración de la agenda tardó demasiado en responder.'
+            : this.errors.toUserMessage(error, 'No se pudo cargar la configuración de la agenda.'),
+        );
       },
     });
   }
@@ -191,7 +219,7 @@ export class Agenda implements OnInit {
         this.professionalFilter(),
         this.statusFilter(),
       )
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(timeout({ first: READ_REQUEST_TIMEOUT_MS }), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (items) => {
           if (requestId !== this.agendaRequestId) return;
@@ -201,10 +229,9 @@ export class Agenda implements OnInit {
         error: (error: unknown) => {
           if (requestId !== this.agendaRequestId) return;
           this.loading.set(false);
-          this.error.set(this.errors.toUserMessage(
-            error,
-            'No se pudieron cargar las citas de la semana.',
-          ));
+          this.error.set(error instanceof TimeoutError
+            ? 'La consulta de citas tardó demasiado. Pulsa Actualizar agenda para reintentar.'
+            : this.errors.toUserMessage(error, 'No se pudieron cargar las citas de la semana.'));
         },
       });
   }
@@ -328,7 +355,7 @@ export class Agenda implements OnInit {
           sort: 'fullName',
           direction: 'asc',
         })
-        .pipe(takeUntilDestroyed(this.destroyRef))
+        .pipe(timeout({ first: READ_REQUEST_TIMEOUT_MS }), takeUntilDestroyed(this.destroyRef))
         .subscribe({
           next: (result) => {
             if (requestId !== this.patientSearchRequestId) return;
@@ -339,6 +366,7 @@ export class Agenda implements OnInit {
             if (requestId !== this.patientSearchRequestId) return;
             this.patientResults.set([]);
             this.searchingPatients.set(false);
+            this.error.set('No se pudo buscar pacientes. Inténtalo nuevamente.');
           },
         });
     }, 250);
@@ -369,7 +397,7 @@ export class Agenda implements OnInit {
     }
     this.loadingSlots.set(true);
     this.api.availability(professionalId, date, typeId)
-      .pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      .pipe(timeout({ first: READ_REQUEST_TIMEOUT_MS }), takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (slots) => {
         if (requestId !== this.slotsRequestId) return;
         this.availability.set(slots);
@@ -378,7 +406,9 @@ export class Agenda implements OnInit {
       error: (error: unknown) => {
         if (requestId !== this.slotsRequestId) return;
         this.loadingSlots.set(false);
-        this.error.set(this.errors.toUserMessage(error, 'No se pudo consultar la disponibilidad.'));
+        this.error.set(error instanceof TimeoutError
+          ? 'La consulta de horarios tardó demasiado. Cambia la fecha para reintentar.'
+          : this.errors.toUserMessage(error, 'No se pudo consultar la disponibilidad.'));
       },
     });
   }

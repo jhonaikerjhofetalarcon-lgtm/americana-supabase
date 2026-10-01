@@ -23,6 +23,13 @@ describe('CopilotApiService', () => {
       body: { encounterId: 12, type: 'VERIFICACION_CIERRE' },
     });
   });
+  it('sends patient context and message history to the chat Edge Function', async () => {
+    const messages = [{ role: 'user' as const, content: 'Resume la atención' }];
+    await firstValueFrom(service.chat(12, messages));
+    expect(invoke).toHaveBeenCalledWith('copilot-chat', {
+      body: { encounterId: 12, messages },
+    });
+  });
   it('sends optimistic version on professional approval', async () => {
     await firstValueFrom(service.approve(5, 2));
     expect(rpc).toHaveBeenCalledWith('revisar_borrador_ia', {

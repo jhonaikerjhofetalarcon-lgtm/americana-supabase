@@ -1,5 +1,6 @@
 import { inject, Injectable, signal } from '@angular/core';
-import { catchError, forkJoin, Observable, of } from 'rxjs';
+import { catchError, forkJoin, Observable, of, timeout } from 'rxjs';
+import { READ_REQUEST_TIMEOUT_MS } from '../supabase/request-timeout';
 import { AppointmentApiService } from '../../features/appointments/data-access/appointment-api.service';
 import { BookingRequestApiService } from '../../features/appointments/data-access/booking-request-api.service';
 import { Appointment as ApiAppointment } from '../../features/appointments/models/appointment.models';
@@ -37,7 +38,7 @@ export class DashboardService {
     this.error.set('');
     this.warnings.set([]);
     const available = <T>(request: Observable<T>, label: string): Observable<T | null> =>
-      request.pipe(catchError(() => {
+      request.pipe(timeout({ first: READ_REQUEST_TIMEOUT_MS }), catchError(() => {
         if (requestId === this.requestId) this.warnings.update((items) => [...items, label]);
         return of(null);
       }));

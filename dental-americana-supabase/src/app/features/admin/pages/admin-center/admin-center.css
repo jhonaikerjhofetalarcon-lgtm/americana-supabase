@@ -188,6 +188,11 @@
   margin: 10px 0;
   flex-wrap: wrap;
 }
+.profile-name {
+  margin-top: 10px;
+  color: #284f61;
+  font-size: 0.56rem;
+}
 .roles span {
   padding: 4px 6px;
   border-radius: 8px;
@@ -514,6 +519,72 @@
   display: grid;
   gap: 12px;
   padding: 18px;
+}
+.profile-picker {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.profile-picker legend {
+  color: #526d81;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.profile-picker > p {
+  margin: 4px 0 9px;
+  color: #7d909e;
+  font-size: 0.54rem;
+  line-height: 1.5;
+}
+.profile-picker > div {
+  display: grid;
+  gap: 7px;
+}
+.drawer .profile-picker label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  padding: 10px;
+  border: 1px solid #d9e4e9;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+}
+.drawer .profile-picker label.selected {
+  border-color: #1a7b90;
+  background: #f0f8f9;
+  box-shadow: 0 0 0 1px #1a7b90;
+}
+.profile-picker input {
+  width: 16px;
+  min-height: 16px;
+  accent-color: #177387;
+}
+.profile-picker strong,
+.profile-picker small {
+  display: block;
+}
+.profile-picker strong {
+  color: #284b5b;
+  font-size: 0.6rem;
+}
+.profile-picker small {
+  margin-top: 3px;
+  color: #718793;
+  font-size: 0.52rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.profile-picker i {
+  padding: 4px 6px;
+  border-radius: 7px;
+  color: #176b56;
+  background: #e5f4ed;
+  font-size: 0.47rem;
+  font-style: normal;
+  white-space: nowrap;
 }
 .drawer label {
   display: grid;

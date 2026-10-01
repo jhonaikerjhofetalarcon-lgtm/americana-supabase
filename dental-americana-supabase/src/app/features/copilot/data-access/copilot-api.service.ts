@@ -1,11 +1,20 @@
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { SupabaseApiService } from '../../../core/supabase/supabase-api.service';
-import { AiDraft, AiDraftType } from '../models/copilot.models';
+import { AiDraft, AiDraftType, ChatMessage, ChatReply } from '../models/copilot.models';
 
 @Injectable({ providedIn: 'root' })
 export class CopilotApiService {
   private readonly api = inject(SupabaseApiService);
+  chat(encounterId: number | null, messages: ChatMessage[]): Observable<ChatReply> {
+    return this.api.invoke<ChatReply>(
+      'copilot-chat',
+      { encounterId, messages },
+      {
+        errorMessage: 'No se pudo obtener una respuesta de DentalIA. Inténtalo nuevamente.',
+      },
+    );
+  }
   list(encounterId: number): Observable<AiDraft[]> {
     return this.rpc<AiDraft[]>('listar_borradores_ia', { atencion_id: encounterId }, []);
   }

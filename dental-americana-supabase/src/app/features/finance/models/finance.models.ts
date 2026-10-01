@@ -48,6 +48,26 @@ export interface Payment {
   receiptNumber: string;
   status: string;
   registeredAt: string;
+  version?: number;
+  voidedAt?: string;
+  voidedBy?: number;
+  voidReason?: string;
+}
+export interface SignedPaymentAgreement {
+  payment: Payment;
+  agreement: {
+    patientName: string;
+    patientDocument?: string | null;
+    planCode: string;
+    planTotal: number;
+    paidBefore: number;
+    paymentAmount: number;
+    paidAfter: number;
+    balanceAfter: number;
+    terms: string;
+    items: { name: string; tooth?: string | null; quantity: number; subtotal: number }[];
+  };
+  signatureData: string;
 }
 export interface Expense {
   id: number;
@@ -75,6 +95,8 @@ export interface Movement {
   createdAt: string;
 }
 export interface FinanceDashboard {
+  voidedPaymentsCount?: number;
+  voidedAmount?: number;
   income: number;
   expenses: number;
   net: number;

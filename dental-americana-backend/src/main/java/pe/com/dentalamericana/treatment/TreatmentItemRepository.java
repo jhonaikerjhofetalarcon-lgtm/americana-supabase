@@ -1,1 +1,0 @@
-package pe.com.dentalamericana.treatment;import org.springframework.data.jpa.repository.JpaRepository;import java.util.*;public interface TreatmentItemRepository extends JpaRepository<TreatmentItem,Long>{List<TreatmentItem>findAllByPlanIdAndActivoTrueOrderByIdAsc(Long planId);Optional<TreatmentItem>findByIdAndPlanIdAndActivoTrue(Long id,Long planId);}

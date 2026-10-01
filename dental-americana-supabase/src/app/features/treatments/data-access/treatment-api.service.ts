@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { from, map, Observable, switchMap } from 'rxjs';
 import { SupabaseApiService } from '../../../core/supabase/supabase-api.service';
-import { DentalService, ItemStatus, PlanStatus, TreatmentPlan } from '../models/treatment.models';
+import { DentalService, ItemStatus, PlanStatus, TreatmentPlan, SignedBudget } from '../models/treatment.models';
 
 type TreatmentCommand =
   'CREAR' | 'AGREGAR_ITEM' | 'RETIRAR_ITEM' | 'REVISAR' | 'ESTADO' | 'ESTADO_ITEM' | 'EVOLUCION';
@@ -61,6 +61,21 @@ export class TreatmentApiService {
         errorMessage: 'No se pudieron consultar los planes.',
       },
     );
+  }
+  get(planId: number): Observable<TreatmentPlan> {
+    return this.api.rpc<TreatmentPlan>('obtener_plan', { plan_id: planId }, {
+      errorMessage: 'No se pudo recuperar el presupuesto.',
+    });
+  }
+  budgetAgreement(planId: number): Observable<SignedBudget | null> {
+    return this.api.rpc<SignedBudget | null>('obtener_acuerdo_presupuesto', { plan_id: planId }, {
+      fallback: null, errorMessage: 'No se pudo consultar la firma del presupuesto.',
+    });
+  }
+  signBudget(planId: number, version: number, signatureData: string): Observable<SignedBudget> {
+    return this.api.rpc<SignedBudget>('firmar_presupuesto', {
+      datos: this.api.toJson({ planId, version, signatureData, confirmation: true }),
+    }, { errorMessage: 'No se pudo guardar el presupuesto firmado.' });
   }
 
   create(patientId: number, encounterId: number): Observable<TreatmentPlan> {

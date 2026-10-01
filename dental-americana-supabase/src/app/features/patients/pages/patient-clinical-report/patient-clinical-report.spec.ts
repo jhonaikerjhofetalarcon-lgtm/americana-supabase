@@ -84,4 +84,14 @@ describe('Vista imprimible de historia clínica', () => {
     fixture.nativeElement.querySelector('button.primary').click();
     expect(print).toHaveBeenCalledOnce();
   });
+  it('muestra un error y deja de cargar si el identificador no es válido', () => {
+    TestBed.overrideProvider(ActivatedRoute, {
+      useValue: { snapshot: { paramMap: convertToParamMap({ id: 'no-valido' }) } },
+    });
+    const fixture = TestBed.createComponent(PatientClinicalReportPage);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.loading()).toBe(false);
+    expect(fixture.componentInstance.error()).toContain('identificador');
+    expect(load).not.toHaveBeenCalled();
+  });
 });

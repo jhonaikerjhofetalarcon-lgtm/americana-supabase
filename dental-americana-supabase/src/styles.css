@@ -3,6 +3,14 @@
 @import 'tailwindcss';
 
 @media print {
+  body.printing-budget * { visibility: hidden !important; }
+  body.printing-budget .budget-document, body.printing-budget .budget-document * { visibility: visible !important; }
+  body.printing-budget *:has(.budget-document) > :not(:has(.budget-document)):not(.budget-document) { display: none !important; }
+  body.printing-budget *:has(.budget-document) { position: static !important; display: block !important; overflow: visible !important; height: auto !important; min-height: 0 !important; max-height: none !important; width: auto !important; margin: 0 !important; padding: 0 !important; border: 0 !important; box-shadow: none !important; background: white !important; }
+  body.printing-budget .budget-document { padding: 12mm; }
+}
+
+@media print {
   @page clinical-history { size: A4; margin: 15mm; }
   app-patient-clinical-report { page: clinical-history; }
   body:has(app-patient-clinical-report) { min-width: 0; background: white; }
@@ -51,4 +59,12 @@ h1,h2,h3,h4 { margin:0; font-family:'Manrope Variable','Inter Variable',sans-ser
   .ui-alert > svg { width: 16px; }
   .ui-alert--error { color: #9c3b43; background: #fff0f2; }
   .ui-alert--success { color: #1e6c53; background: #eaf8f1; }
+}
+@media print {
+  body.printing-agreement * { visibility: hidden !important; }
+  body.printing-agreement .agreement-print,
+  body.printing-agreement .agreement-print * { visibility: visible !important; }
+  body.printing-agreement .agreement-dialog { position:static !important; inset:auto !important; display:block !important; overflow:visible !important; border:0 !important; box-shadow:none !important; }
+  body.printing-agreement .agreement-scrim { display:none !important; }
+  body.printing-agreement .agreement-print { position: fixed !important; inset: 0 auto auto 0 !important; width: 100% !important; padding: 16mm !important; box-sizing: border-box !important; }
 }

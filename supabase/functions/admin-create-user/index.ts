@@ -55,15 +55,28 @@ Deno.serve(async (request) => {
         "El correo electrónico no tiene un formato válido",
       );
     }
-    if (
-      !Array.isArray(body.roles) ||
-      body.roles.length !== 1 ||
-      body.roles[0] !== "ODONTOLOGO"
-    ) {
-      throw new HttpError(
-        400,
-        "El alta de la aplicación utiliza únicamente el rol ODONTOLOGO",
-      );
+    const requestedRoles = Array.isArray(body.roles)
+      ? [
+          ...new Set(
+            body.roles.filter(
+              (value): value is string => typeof value === "string",
+            ),
+          ),
+        ].sort()
+      : [];
+    const allowedProfiles = [
+      ["ADMINISTRADOR", "ODONTOLOGO"],
+      ["CAJA"],
+      ["ODONTOLOGO"],
+      ["RECEPCION"],
+    ];
+    const validProfile = allowedProfiles.some(
+      (profile) =>
+        profile.length === requestedRoles.length &&
+        profile.every((role, index) => role === requestedRoles[index]),
+    );
+    if (!validProfile) {
+      throw new HttpError(400, "Selecciona un perfil de acceso válido");
     }
     const admin = serviceClient();
     const authEmail = email || `${username}@auth.dental-americana.invalid`;
@@ -90,22 +103,29 @@ Deno.serve(async (request) => {
         .select("id")
         .eq("auth_user_id", created.data.user.id)
         .single();
-      const role = await admin
+      const roleResult = await admin
         .from("roles")
         .select("id")
-        .eq("codigo", "ODONTOLOGO")
-        .eq("activo", true)
-        .single();
-      if (profile.error || role.error)
+        .in("codigo", requestedRoles)
+        .eq("activo", true);
+      const roleRows = roleResult.data ?? [];
+      if (
+        profile.error ||
+        roleResult.error ||
+        roleRows.length !== requestedRoles.length
+      )
         throw new Error("No se pudo enlazar perfil y rol");
       const updated = await admin
         .from("usuarios")
         .update({ nombre_completo: fullName, email: email || null })
         .eq("id", profile.data.id);
       if (updated.error) throw updated.error;
-      const assigned = await admin
-        .from("usuarios_roles")
-        .insert({ usuario_id: profile.data.id, rol_id: role.data.id });
+      const assigned = await admin.from("usuarios_roles").insert(
+        roleRows.map((role) => ({
+          usuario_id: profile.data.id,
+          rol_id: role.id,
+        })),
+      );
       if (assigned.error) throw assigned.error;
       const users = await caller.rpc("listar_usuarios");
       if (users.error) throw users.error;

@@ -8,10 +8,10 @@ npx supabase db reset
 npx supabase functions serve
 ```
 
-Las 24 migraciones crean el esquema, roles, RLS, RPC, Storage, Realtime, mensajería, copiloto y
+Las migraciones crean el esquema, roles, RLS, RPC, Storage, Realtime, mensajería, copiloto y
 administración. El reset no crea usuarios operativos.
 
-Después de crear el primer usuario en Supabase Auth, asígnele explícitamente el rol administrador con
+Después de crear el primer usuario en Supabase Auth, asígnele explícitamente el perfil propietario odontólogo con
 `seed/phase1_roles.sql`, reemplazando primero `REEMPLAZAR_USUARIO_ADMIN`. No ejecute el archivo con el
 marcador original.
 

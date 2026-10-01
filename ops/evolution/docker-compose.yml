@@ -1,6 +1,6 @@
 services:
   evolution-api:
-    image: evoapicloud/evolution-api:latest
+    image: evoapicloud/evolution-api:v2.3.7@sha256:1bd8afc4a6cf48822e6cf02469aeae7bd35a12a6b616eacd1291926307f4d339
     container_name: dental-evolution-api
     restart: unless-stopped
     depends_on:
@@ -26,7 +26,7 @@ services:
     environment:
       POSTGRES_DB: evolution
       POSTGRES_USER: evolution
-      POSTGRES_PASSWORD: evolution-local-password
+      POSTGRES_PASSWORD: ${EVOLUTION_DB_PASSWORD:?Falta EVOLUTION_DB_PASSWORD}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U evolution -d evolution"]
       interval: 5s

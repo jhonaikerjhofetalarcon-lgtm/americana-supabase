@@ -786,10 +786,60 @@ textarea[readonly] {
   margin: 4px 0 2px;
   font-size: 0.9rem;
 }
-.form-pair {
+.selection-summary {
   display: grid;
-  grid-template-columns: 1fr 1fr;
   gap: 8px;
+  padding: 12px;
+  border: 1px solid #dbe8ec;
+  border-radius: 10px;
+  background: #f6fafb;
+}
+.selection-summary > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.73rem;
+}
+.selection-summary span {
+  color: #617b89;
+}
+.selection-summary strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #274958;
+  text-align: right;
+}
+.selection-summary i {
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  border-radius: 50%;
+}
+.change-selection {
+  justify-self: start;
+  border: 0;
+  padding: 3px 0;
+  color: #126d81;
+  background: transparent;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.change-selection:hover {
+  color: #0c5262;
+}
+.discard-finding-detail {
+  justify-self: end;
+  border: 0;
+  padding: 3px 0;
+  color: #806271;
+  background: transparent;
+  font-size: 0.7rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 .detail-panel label {
   display: flex;
@@ -1139,3 +1189,24 @@ textarea[readonly] {
     transition: none;
   }
 }
+.odontogram-page.embedded { min-height:0; padding:16px 8px 28px; background:transparent; }
+.odontogram-page.embedded .page-header>a { display:none; }
+.odontogram-page.embedded .editor-layout { grid-template-columns:minmax(0,1fr); }
+.odontogram-page.embedded .detail-panel { position:static; max-height:none; }
+.load-recovery { display:flex; align-items:center; gap:14px; max-width:900px; margin:24px auto; padding:22px; border:1px solid #efcfb8; border-radius:16px; background:#fff9f3; color:#8d502a; }
+.load-recovery > svg { width:24px; height:24px; }
+.load-recovery > div { flex:1; }
+.load-recovery strong { font-size:.88rem; }
+.load-recovery p { margin:5px 0 0; font-size:.73rem; line-height:1.5; }
+.load-recovery button, .retry-load { min-height:40px; padding:0 16px; border:0; border-radius:9px; background:#176f82; color:white; font-size:.74rem; font-weight:800; }
+@media (max-width:700px) { .load-recovery { align-items:flex-start; flex-wrap:wrap; }.load-recovery button { width:100%; } }
+.marking-toolbar { margin-top:20px; background:linear-gradient(145deg,#f6fbfb,#eef7f8); border-color:#bfdee3; }
+.marking-toolbar .condition-palette { margin-top:8px; }
+.more-conditions { margin-top:9px; padding:7px 2px; border:0; color:#126f82; background:transparent; font-size:.72rem; font-weight:800; text-decoration:underline; text-underline-offset:3px; }
+.whole-tooth-hint { margin:10px 0 0; padding:9px 11px; border-radius:8px; color:#315f6a; background:#e2f0f2; font-size:.7rem; font-weight:700; }
+.chart-step { display:flex; flex-wrap:wrap; justify-content:space-between; gap:6px 14px; margin-top:20px; padding:10px 12px; border-radius:9px; color:#175e6e; background:#eaf5f7; }
+.chart-step span { font-size:.64rem; font-weight:900; letter-spacing:.06em; }
+.chart-step strong { font-size:.67rem; font-weight:650; }
+.chart-step + .quadrant-filter { margin-top:14px; }
+.detail-panel .general-note { margin:0 18px 18px; padding:14px; border:1px solid #e0e9ed; border-radius:11px; background:#f9fbfc; }
+@media (max-width:700px) { .marking-toolbar { padding:14px; }.chart-step strong { width:100%; } }

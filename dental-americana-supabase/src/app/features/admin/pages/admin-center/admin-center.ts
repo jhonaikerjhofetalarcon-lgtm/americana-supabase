@@ -29,13 +29,16 @@ import {
   LucideUsers,
   LucideX,
 } from '@lucide/angular';
-import { forkJoin, Observable } from 'rxjs';
+import { forkJoin, Observable, timeout } from 'rxjs';
+import { READ_REQUEST_TIMEOUT_MS } from '../../../../core/supabase/request-timeout';
 import { AdminApiService } from '../../data-access/admin-api.service';
 import {
   AuditEntry,
   OperationalSummary,
   Role,
   Setting,
+  StaffProfile,
+  StaffProfileOption,
   UserAccount,
 } from '../../models/admin.models';
 type Tab = 'users' | 'settings' | 'audit' | 'reports';
@@ -88,6 +91,32 @@ export class AdminCenter implements OnInit {
   readonly createOpen = signal(false);
   readonly settingDrafts = signal<Record<string, string>>({});
   readonly range = this.defaultRange();
+  readonly staffProfiles: readonly StaffProfileOption[] = [
+    {
+      code: 'PROPIETARIO_ODONTOLOGO',
+      name: 'Propietario odontólogo',
+      description: 'Acceso completo, atención clínica, aprobaciones y configuración.',
+      roles: ['ADMINISTRADOR', 'ODONTOLOGO'],
+    },
+    {
+      code: 'ODONTOLOGO',
+      name: 'Odontólogo',
+      description: 'Pacientes, agenda, clínica, tratamientos, seguimientos y DentalIA.',
+      roles: ['ODONTOLOGO'],
+    },
+    {
+      code: 'RECEPCION',
+      name: 'Recepción',
+      description: 'Pacientes, agenda y comunicación, sin acceso a decisiones clínicas.',
+      roles: ['RECEPCION'],
+    },
+    {
+      code: 'CAJA',
+      name: 'Caja',
+      description: 'Cobros, gastos y reportes financieros.',
+      roles: ['CAJA'],
+    },
+  ];
   readonly userForm = this.fb.group({
     fullName: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(150)]],
     username: [
@@ -109,6 +138,7 @@ export class AdminCenter implements OnInit {
         Validators.pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/),
       ],
     ],
+    profile: this.fb.control<StaffProfile>('PROPIETARIO_ODONTOLOGO', Validators.required),
   });
   readonly passwordForm = this.fb.group({
     currentPassword: ['', Validators.required],
@@ -137,7 +167,7 @@ export class AdminCenter implements OnInit {
       audits: this.api.audit(this.range.from, this.range.to),
       summary: this.api.summary(this.range.from, this.range.to),
     })
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(timeout({ first: READ_REQUEST_TIMEOUT_MS }), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (r) => {
           if (requestId !== this.loadRequestId) return;
@@ -160,7 +190,13 @@ export class AdminCenter implements OnInit {
   }
   openCreateUser(): void {
     if (this.saving()) return;
-    this.userForm.reset({ fullName: '', username: '', email: '', password: '' });
+    this.userForm.reset({
+      fullName: '',
+      username: '',
+      email: '',
+      password: '',
+      profile: 'PROPIETARIO_ODONTOLOGO',
+    });
     this.error.set('');
     this.success.set('');
     this.createOpen.set(true);
@@ -181,15 +217,20 @@ export class AdminCenter implements OnInit {
       return;
     }
     const v = this.userForm.getRawValue();
+    const profile = this.staffProfiles.find((item) => item.code === v.profile);
+    if (!profile) {
+      this.error.set('Selecciona un perfil de acceso válido.');
+      return;
+    }
     this.run(
       this.api.createUser({
         username: v.username.trim(),
         password: v.password,
         fullName: v.fullName.trim(),
         email: v.email.trim() || null,
-        roles: ['ODONTOLOGO'],
+        roles: [...profile.roles],
       }),
-      'Usuario creado.',
+      `${profile.name} creado correctamente.`,
       () => {
         this.createOpen.set(false);
         this.userForm.reset();
@@ -283,6 +324,14 @@ export class AdminCenter implements OnInit {
   }
   label(v: string): string {
     return v.replaceAll('_', ' ').toLowerCase();
+  }
+  profileName(roles: readonly string[]): string {
+    if (roles.includes('ADMINISTRADOR') && roles.includes('ODONTOLOGO')) {
+      return 'Propietario odontólogo';
+    }
+    return roles
+      .map((role) => this.roles().find((item) => item.code === role)?.name ?? this.label(role))
+      .join(' · ');
   }
   private run<T>(request: Observable<T>, message: string, done: () => void = () => {}): void {
     if (this.saving()) return;

@@ -1,5 +1,7 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { timeout } from 'rxjs';
+import { READ_REQUEST_TIMEOUT_MS } from '../../../../core/supabase/request-timeout';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { LucideAlertTriangle, LucideArrowLeft, LucideCheck, LucideChevronRight, LucideSave, LucideShieldCheck, LucideUserRound } from '@lucide/angular';
@@ -81,7 +83,7 @@ export class PatientForm implements OnInit {
       const value = this.form.getRawValue();
       this.loading.set(true);
       this.api.duplicates(value.documentNumber, value.mobile, value.birthDate, value.paternalSurname)
-        .pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+        .pipe(timeout({ first: READ_REQUEST_TIMEOUT_MS }), takeUntilDestroyed(this.destroyRef)).subscribe({
         next: (items) => {
           this.loading.set(false); this.duplicates.set(items);
           if (items.length) this.duplicateReviewOpen.set(true); else this.persist();
@@ -132,7 +134,7 @@ export class PatientForm implements OnInit {
 
   private load(id: number): void {
     this.loadingPatient.set(true);
-    this.api.get(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    this.api.get(id).pipe(timeout({ first: READ_REQUEST_TIMEOUT_MS }), takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (p) => {
         this.existing.set(p); this.loadingPatient.set(false);
         this.form.patchValue({

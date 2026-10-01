@@ -125,6 +125,24 @@ textarea {
   border: 1px solid #f0c9cc;
   background: #fff3f4;
 }
+.message.info {
+  color: #356b7a;
+  border: 1px solid #cbe2e8;
+  background: #f2f9fa;
+}
+.message > span {
+  flex: 1;
+}
+.message > button {
+  margin-left: auto;
+  padding: 6px 10px;
+  border: 1px solid currentColor;
+  border-radius: 7px;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
 .message.success {
   color: #196a51;
   border: 1px solid #bee4d3;

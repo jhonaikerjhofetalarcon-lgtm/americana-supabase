@@ -18,7 +18,8 @@ import {
   AllergyPayload, AllergySeverity, AllergyStatus, HistoryPayload, HistoryStatus,
   HistoryType, MedicationPayload, PatientDetail, PatientFile, PatientFileCategory,
 } from '../../models/patient.models';
-import { Observable } from 'rxjs';
+import { Observable, timeout } from 'rxjs';
+import { READ_REQUEST_TIMEOUT_MS } from '../../../../core/supabase/request-timeout';
 
 type DetailTab = 'summary' | 'histories' | 'medication' | 'files';
 
@@ -205,7 +206,7 @@ export class PatientDetailPage implements OnInit {
 
   private load(id: number): void {
     this.loading.set(true); this.error.set('');
-    this.api.get(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    this.api.get(id).pipe(timeout({ first: READ_REQUEST_TIMEOUT_MS }), takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (patient) => { this.patient.set(patient); this.loading.set(false); },
       error: (error: unknown) => {
         this.loading.set(false);

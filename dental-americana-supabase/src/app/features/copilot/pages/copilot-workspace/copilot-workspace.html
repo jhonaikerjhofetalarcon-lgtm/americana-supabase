@@ -1,12 +1,9 @@
 <section class="copilot-page">
   <header>
     <div>
-      <small>DentalIA · IA clínica supervisada</small>
+      <small>Tu asistente de consulta</small>
       <h1>DentalIA</h1>
-      <p>
-        Borradores basados en los datos registrados. Cuando Gemini está configurado se ejecuta de
-        forma protegida desde Supabase; el profesional siempre revisa y decide.
-      </p>
+      <p>Conversa, consulta los datos de una atención y prepara tus borradores en un solo lugar.</p>
     </div>
     <button
       class="refresh ui-button ui-button--secondary ui-button--compact"
@@ -28,15 +25,16 @@
   <div class="guardrail">
     <span><svg lucideShieldCheck></svg></span>
     <div>
-      <strong>Control clínico obligatorio</strong>
-      <p>
-        El asistente no diagnostica, no prescribe y no guarda datos clínicos por sí solo. Cada
-        salida conserva fuente, versión y responsable.
-      </p>
+      <strong>Un asistente a tu lado</strong>
+      <p>Las respuestas requieren revisión profesional. El chat no modifica la historia clínica.</p>
     </div>
   </div>
   <div class="layout">
     <aside class="encounters">
+      <button class="general-chat" [class.active]="!selected()" (click)="generalChat()">
+        <span><svg lucideBot></svg></span>
+        <div><strong>Conversación general</strong><small>Sin contexto de un paciente</small></div>
+      </button>
       <header>
         <h2>Atenciones recientes</h2>
         <span>{{ encounters().length }}</span>
@@ -45,7 +43,11 @@
         <div class="state"><svg lucideLoaderCircle class="animate-spin"></svg></div>
       }
       @for (e of encounters(); track e.id) {
-        <button [class.active]="selected()?.id === e.id" (click)="select(e)">
+        <button
+          [class.active]="selected()?.id === e.id"
+          [attr.aria-pressed]="selected()?.id === e.id"
+          (click)="select(e)"
+        >
           <span>{{ e.patientName.slice(0, 1) }}</span>
           <div>
             <strong>{{ e.patientName }}</strong
@@ -71,116 +73,238 @@
           </div>
           <i>{{ label(e.status) }}</i>
         </section>
-        <section class="actions">
-          <header>
+      }
+      <section class="chat-panel" aria-label="Chat con DentalIA">
+        <header class="chat-header">
+          <div class="chat-identity">
+            <span class="bot-avatar"><svg lucideBot></svg></span>
             <div>
-              <small>Acciones seguras</small>
-              <h2>¿Qué deseas preparar?</h2>
+              <h2>DentalIA</h2>
+              <p>
+                {{ selected() ? 'Contexto de la atención seleccionada' : 'Conversación general' }}
+              </p>
             </div>
-            <svg lucideSparkles></svg>
-          </header>
-          <div>
-            @for (type of draftTypes; track type) {
-              <button [disabled]="working() || !canGenerate()" (click)="generate(type)">
-                @switch (type) {
-                  @case ('RESUMEN_HISTORIA') {
-                    <span><svg lucideHistory></svg></span>
-                  }
-                  @case ('BORRADOR_EVOLUCION') {
-                    <span><svg lucideStethoscope></svg></span>
-                  }
-                  @case ('INDICACIONES_POSTCONSULTA') {
-                    <span><svg lucideFileHeart></svg></span>
-                  }
-                  @default {
-                    <span><svg lucideClipboardCheck></svg></span>
-                  }
-                }
-                <strong>{{ label(type) }}</strong
-                ><small>Generar borrador trazable</small>
-              </button>
-            }
           </div>
-        </section>
-        <section class="drafts">
-          <header>
-            <h2>Borradores y revisiones</h2>
-            <span>{{ drafts().length }}</span>
-          </header>
-          @if (loading()) {
-            <div class="state">
-              <svg lucideLoaderCircle class="animate-spin"></svg>
-              <p>Cargando...</p>
+          <button type="button" class="new-chat" (click)="newChat()">
+            <svg lucidePlus></svg>Nueva conversación
+          </button>
+        </header>
+        <div
+          class="chat-messages"
+          #messageList
+          role="log"
+          aria-label="Mensajes de la conversación"
+          aria-live="polite"
+          [attr.aria-busy]="chatting()"
+          tabindex="0"
+        >
+          @if (!messages().length) {
+            <div class="chat-welcome">
+              <span class="welcome-icon"><svg lucideSparkles></svg></span>
+              <small>HOLA, SOY DENTALIA</small>
+              <h2>¿En qué te ayudo hoy?</h2>
+              <p>
+                Puedes conversar conmigo o seleccionar una atención para consultar sus datos
+                registrados.
+              </p>
+              <div class="chat-suggestions">
+                @for (suggestion of suggestions; track suggestion) {
+                  <button
+                    type="button"
+                    [disabled]="!canGenerate()"
+                    (click)="sendMessage(suggestion)"
+                  >
+                    {{ suggestion }}<svg lucideSend></svg>
+                  </button>
+                }
+              </div>
             </div>
           }
-          @for (d of drafts(); track d.id) {
-            <article
-              [class.approved]="d.status === 'APROBADO'"
-              [class.rejected]="d.status === 'RECHAZADO'"
+          @for (message of messages(); track $index) {
+            <article class="chat-message" [class.from-user]="message.role === 'user'">
+              <span class="message-author">{{ message.role === 'user' ? 'Tú' : 'DentalIA' }}</span>
+              <div class="message-bubble">{{ message.content }}</div>
+            </article>
+          }
+          @if (chatting()) {
+            <div class="typing" role="status">
+              <svg lucideLoaderCircle class="animate-spin"></svg>DentalIA está preparando una
+              respuesta…
+            </div>
+          }
+          @if (chatError()) {
+            <div class="chat-error" role="alert">
+              <p>{{ chatError() }}</p>
+              <button type="button" (click)="retryMessage()">Reintentar respuesta</button>
+            </div>
+          }
+        </div>
+        <form class="chat-composer" (ngSubmit)="sendMessage()">
+          @if (chatMode() === 'basic') {
+            <p class="basic-mode">
+              Modo básico · consultas de datos registrados. La conversación libre requiere activar
+              el proveedor de IA.
+            </p>
+          }
+          <label class="composer-label" for="dentalia-message">Tu mensaje</label>
+          <div class="composer-input">
+            <textarea
+              id="dentalia-message"
+              name="message"
+              [(ngModel)]="messageText"
+              (keydown)="onComposerKeydown($event)"
+              rows="2"
+              maxlength="4000"
+              [disabled]="!canGenerate()"
+              placeholder="Escribe tu consulta a DentalIA…"
+              aria-describedby="composer-hint"
+            ></textarea>
+            <button
+              type="submit"
+              class="send-message"
+              [disabled]="
+                chatting() || !canGenerate() || !messageText.trim() || messageText.length > 4000
+              "
+              aria-label="Enviar mensaje"
             >
+              <svg lucideSend></svg>
+            </button>
+          </div>
+          <div class="composer-footer" id="composer-hint">
+            <span>{{
+              canGenerate()
+                ? 'Enter para enviar · Shift + Enter para salto de línea'
+                : 'Tu usuario no tiene permiso para enviar mensajes a DentalIA.'
+            }}</span>
+            <span>{{ messageText.length }}/4000</span>
+          </div>
+          <p class="chat-privacy">
+            La conversación se conserva solo mientras permaneces en esta pantalla.
+          </p>
+        </form>
+      </section>
+      @if (selected()) {
+        <button
+          class="drafts-toggle"
+          type="button"
+          [attr.aria-expanded]="showDrafts()"
+          aria-controls="clinical-drafts"
+          (click)="showDrafts.set(!showDrafts())"
+        >
+          <svg lucideClipboardCheck></svg
+          >{{
+            showDrafts() ? 'Ocultar borradores clínicos' : 'Preparar y revisar borradores clínicos'
+          }}<span>{{ drafts().length }}</span>
+        </button>
+        @if (showDrafts()) {
+          <div id="clinical-drafts" class="clinical-drafts">
+            <section class="actions">
               <header>
                 <div>
-                  <span><svg lucideBot></svg></span>
-                  <div>
-                    <strong>{{ label(d.type) }}</strong
-                    ><small
-                      >{{ d.generatedAt | date: 'dd/MM/yyyy, HH:mm' }} · versión
-                      {{ d.version + 1 }}</small
-                    >
-                  </div>
+                  <small>Acciones seguras</small>
+                  <h2>¿Qué deseas preparar?</h2>
                 </div>
-                <i>{{ label(d.status) }}</i>
+                <svg lucideSparkles></svg>
               </header>
-              @if (editing() === d.id) {
-                <label
-                  >Contenido del borrador<textarea
-                    style="width: 100%; min-height: 220px"
-                    maxlength="20000"
-                    [(ngModel)]="editContent"
-                  ></textarea></label
-                ><button [disabled]="working() || !editContent.trim()" (click)="saveEdit(d)">
-                  Guardar corrección</button
-                ><button (click)="editing.set(null)">Cancelar edición</button>
-              } @else {
-                <pre>{{ d.content }}</pre>
-              }
-              @if (d.missingFields.length) {
-                <div class="missing">
-                  <strong>Campos pendientes</strong>
-                  <p>{{ d.missingFields.join(' · ') }}</p>
+              <div>
+                @for (type of draftTypes; track type) {
+                  <button [disabled]="working() || !canGenerate()" (click)="generate(type)">
+                    @switch (type) {
+                      @case ('RESUMEN_HISTORIA') {
+                        <span><svg lucideHistory></svg></span>
+                      }
+                      @case ('BORRADOR_EVOLUCION') {
+                        <span><svg lucideStethoscope></svg></span>
+                      }
+                      @case ('INDICACIONES_POSTCONSULTA') {
+                        <span><svg lucideFileHeart></svg></span>
+                      }
+                      @default {
+                        <span><svg lucideClipboardCheck></svg></span>
+                      }
+                    }
+                    <strong>{{ label(type) }}</strong
+                    ><small>Generar borrador trazable</small>
+                  </button>
+                }
+              </div>
+            </section>
+            <section class="drafts">
+              <header>
+                <h2>Borradores y revisiones</h2>
+                <span>{{ drafts().length }}</span>
+              </header>
+              @if (loading()) {
+                <div class="state">
+                  <svg lucideLoaderCircle class="animate-spin"></svg>
+                  <p>Cargando...</p>
                 </div>
               }
-              <p class="warning"><svg lucideAlertTriangle></svg>{{ d.warning }}</p>
-              @if (d.rejectionReason) {
-                <p class="reject-reason">Motivo: {{ d.rejectionReason }}</p>
+              @for (d of drafts(); track d.id) {
+                <article
+                  [class.approved]="d.status === 'APROBADO'"
+                  [class.rejected]="d.status === 'RECHAZADO'"
+                >
+                  <header>
+                    <div>
+                      <span><svg lucideBot></svg></span>
+                      <div>
+                        <strong>{{ label(d.type) }}</strong
+                        ><small
+                          >{{ d.generatedAt | date: 'dd/MM/yyyy, HH:mm' }} · versión
+                          {{ d.version + 1 }}</small
+                        >
+                      </div>
+                    </div>
+                    <i>{{ label(d.status) }}</i>
+                  </header>
+                  @if (editing() === d.id) {
+                    <label
+                      >Contenido del borrador<textarea
+                        style="width: 100%; min-height: 220px"
+                        maxlength="20000"
+                        [(ngModel)]="editContent"
+                      ></textarea></label
+                    ><button [disabled]="working() || !editContent.trim()" (click)="saveEdit(d)">
+                      Guardar corrección</button
+                    ><button (click)="editing.set(null)">Cancelar edición</button>
+                  } @else {
+                    <pre>{{ d.content }}</pre>
+                  }
+                  @if (d.missingFields.length) {
+                    <div class="missing">
+                      <strong>Campos pendientes</strong>
+                      <p>{{ d.missingFields.join(' · ') }}</p>
+                    </div>
+                  }
+                  <p class="warning"><svg lucideAlertTriangle></svg>{{ d.warning }}</p>
+                  @if (d.rejectionReason) {
+                    <p class="reject-reason">Motivo: {{ d.rejectionReason }}</p>
+                  }
+                  @if (d.status === 'BORRADOR' && canApprove()) {
+                    <footer>
+                      <button [disabled]="working()" (click)="startEdit(d)">Editar borrador</button
+                      ><button class="reject" [disabled]="working()" (click)="reject(d)">
+                        <svg lucideX></svg>Rechazar</button
+                      ><button
+                        class="approve"
+                        [disabled]="working() || editing() === d.id"
+                        (click)="approve(d)"
+                      >
+                        <svg lucideCheck></svg>Aprobar tras revisión
+                      </button>
+                    </footer>
+                  }
+                </article>
+              } @empty {
+                <div class="empty large">
+                  <svg lucideClock3></svg>
+                  <p>Aún no existen borradores para esta atención.</p>
+                </div>
               }
-              @if (d.status === 'BORRADOR' && canApprove()) {
-                <footer>
-                  <button [disabled]="working()" (click)="startEdit(d)">Editar borrador</button
-                  ><button class="reject" [disabled]="working()" (click)="reject(d)">
-                    <svg lucideX></svg>Rechazar</button
-                  ><button
-                    class="approve"
-                    [disabled]="working() || editing() === d.id"
-                    (click)="approve(d)"
-                  >
-                    <svg lucideCheck></svg>Aprobar tras revisión
-                  </button>
-                </footer>
-              }
-            </article>
-          } @empty {
-            <div class="empty large">
-              <svg lucideClock3></svg>
-              <p>Aún no existen borradores para esta atención.</p>
-            </div>
-          }
-        </section>
-      } @else {
-        <div class="empty large">
-          <svg lucideBot></svg>
-          <p>Selecciona una atención.</p>
-        </div>
+            </section>
+          </div>
+        }
       }
     </main>
   </div>

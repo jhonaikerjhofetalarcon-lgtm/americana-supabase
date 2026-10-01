@@ -13,6 +13,9 @@ export class UserFacingError extends Error {
 export class SupabaseErrorService {
   toUserMessage(error: unknown, fallback = 'No se pudo completar la operación.'): string {
     if (error instanceof UserFacingError) return error.message;
+    if ((error as { name?: string } | null)?.name === 'TimeoutError') {
+      return 'La consulta tardó demasiado. Vuelve a intentarlo.';
+    }
     const candidate = error as SupabaseLikeError | null;
     if (candidate?.code === '23505') return 'Ya existe un registro con esos datos.';
     if (candidate?.code === '42501') return 'No tienes permiso para realizar esta operación.';

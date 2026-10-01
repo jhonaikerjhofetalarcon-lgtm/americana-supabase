@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subject } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { SupabaseErrorService } from '../../../../core/supabase/supabase-error.service';
 import { ClinicalApiService } from '../../../clinical/data-access/clinical-api.service';
@@ -63,6 +63,7 @@ describe('OdontogramEditor: edición y respuestas pendientes', () => {
     removeFinding: ReturnType<typeof vi.fn>;
     observe: ReturnType<typeof vi.fn>;
     approve: ReturnType<typeof vi.fn>;
+    list: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(() => {
@@ -73,12 +74,13 @@ describe('OdontogramEditor: edición y respuestas pendientes', () => {
       removeFinding: vi.fn(() => response.asObservable()),
       observe: vi.fn(() => response.asObservable()),
       approve: vi.fn(() => response.asObservable()),
+      list: vi.fn(() => of([permanent])),
     };
     TestBed.configureTestingModule({
       providers: [
         { provide: OdontogramApiService, useValue: api },
-        { provide: ClinicalApiService, useValue: {} },
-        { provide: ActivatedRoute, useValue: {} },
+        { provide: ClinicalApiService, useValue: { get: () => of(encounter) } },
+        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => '3' } } } },
         { provide: Router, useValue: {} },
         { provide: AuthService, useValue: { hasPermission: () => true } },
         {
@@ -106,6 +108,50 @@ describe('OdontogramEditor: edición y respuestas pendientes', () => {
     expect(api.addFinding).not.toHaveBeenCalled();
   });
 
+  it('muestra condiciones frecuentes sin ocultar una condición menos habitual ya seleccionada', () => {
+    expect(page.visibleConditions().map((option) => option.value)).toEqual([
+      'CARIES', 'RESTAURACION', 'CORONA', 'AUSENTE',
+    ]);
+    page.chooseCondition('IMPLANTE');
+    expect(page.visibleConditions().map((option) => option.value)).toContain('IMPLANTE');
+    page.showAllConditions.set(true);
+    expect(page.visibleConditions().length).toBe(page.conditionOptions.length);
+  });
+
+  it('distingue un error de carga de un odontograma inexistente y permite reintentar', () => {
+    api.list.mockReturnValueOnce(throwError(() => new Error('Consulta fallida')));
+    page.ngOnInit();
+    expect(page.loadFailed()).toBe(true);
+    expect(page.loading()).toBe(false);
+    expect(page.error()).toContain('No se pudo cargar');
+
+    page.retry();
+    expect(page.loadFailed()).toBe(false);
+    expect(page.current()?.id).toBe(permanent.id);
+  });
+
+  it('conserva el detalle pendiente y evita aplicarlo a otra pieza', () => {
+    page.form.controls.observation.setValue('Dolor en la pieza 11');
+    page.selectTooth('21');
+    expect(page.selectedTooth()).toBe('11');
+    expect(page.form.controls.observation.value).toBe('Dolor en la pieza 11');
+    expect(page.error()).toContain('antes de cambiar de pieza');
+
+    page.quickMark.set(true);
+    page.markSurface('21', 'MESIAL');
+    expect(page.selectedTooth()).toBe('11');
+    expect(api.addFinding).not.toHaveBeenCalled();
+
+    page.discardFindingDetail();
+    expect(page.error()).toBe('');
+    page.markSurface('21', 'MESIAL');
+    expect(page.selectedTooth()).toBe('21');
+    expect(api.addFinding).toHaveBeenCalledWith(9, expect.objectContaining({
+      tooth: '21',
+      observation: null,
+    }));
+  });
+
   it('registra la superficie, condición y estado elegidos al activar marcado directo', () => {
     page.quickMark.set(true);
     page.chooseCondition('RESTAURACION');
@@ -119,6 +165,15 @@ describe('OdontogramEditor: edición y respuestas pendientes', () => {
       observation: null,
       version: 5,
     });
+  });
+
+  it('registra ausente, extracción indicada e implante sobre la pieza completa', () => {
+    page.quickMark.set(true);
+    page.chooseCondition('AUSENTE');
+    page.markSurface('26', 'OCLUSAL');
+    expect(api.addFinding).toHaveBeenCalledWith(9, expect.objectContaining({
+      tooth: '26', condition: 'AUSENTE', surface: 'GENERAL',
+    }));
   });
 
   it('permite consultar las superficies sin escribir un odontograma aprobado', () => {
@@ -275,6 +330,21 @@ describe('OdontogramEditor: edición y respuestas pendientes', () => {
     page.switchDentition('INFANTIL');
     expect(page.current()).toBe(primary);
     expect(page.observation.value).toBe(primary.generalObservation);
+  });
+
+  it('impide filtrar otra pieza y aprobar con un detalle de hallazgo pendiente', () => {
+    page.form.controls.observation.setValue('Detalle pendiente de la pieza 11');
+    page.focusQuadrant(2);
+    expect(page.focusedQuadrant()).toBe(0);
+    expect(page.selectedTooth()).toBe('11');
+
+    page.switchDentition('INFANTIL');
+    expect(page.dentition()).toBe('PERMANENTE');
+
+    page.approve();
+    expect(api.approve).not.toHaveBeenCalled();
+    expect(window.confirm).not.toHaveBeenCalled();
+    expect(page.error()).toContain('detalle del hallazgo');
   });
 
   it('preserva la nota general y permite volver a guardarla si falla la solicitud', () => {

@@ -46,6 +46,12 @@ button, input, textarea { font: inherit; }
 .record-tabs { display: flex; gap: 3px; margin: 15px 25px 0; padding: 4px; overflow-x: auto; border: 1px solid #dce6ec; border-radius: 12px; background: #eef3f6; }
 .record-tabs button { display: flex; min-width: max-content; height: 39px; align-items: center; gap: 6px; padding: 0 11px; border: 0; border-radius: 9px; color: #6f8293; background: transparent; font-size: .66rem; font-weight: 800; cursor: pointer; }.record-tabs button span { display: grid; width: 18px; height: 18px; place-items: center; border-radius: 6px; color: #718696; background: #dce6ec; font-size: .57rem; }.record-tabs button.active { color: #116f82; background: #fff; box-shadow: 0 3px 9px rgba(25, 61, 86, .1); }.record-tabs button.active span { color: #fff; background: #16788b; }
 .record-body { padding: 15px 25px 100px; }
+.step-navigation { display: flex; max-width: 960px; align-items: center; justify-content: space-between; gap: 12px; margin: 16px auto 0; }
+.step-navigation span { color: #698296; font-size: .72rem; font-weight: 700; }
+.step-navigation > div { display: flex; gap: 8px; }
+.step-navigation button { min-height: 40px; padding: 0 15px; border: 1px solid #cbdde4; border-radius: 9px; color: #176c80; background: #fff; font-size: .73rem; font-weight: 800; cursor: pointer; }
+.step-navigation button.next { border-color: #176f82; color: #fff; background: #176f82; }
+.step-navigation button:focus-visible { outline: 3px solid #72bac6; outline-offset: 2px; }
 .form-card { max-width: 960px; margin: 0 auto; padding: 23px; border: 1px solid #dce6ec; border-radius: 16px; background: #fff; box-shadow: 0 9px 28px rgba(24, 57, 82, .04); }
 .form-card > header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }.form-card > header > span { display: grid; width: 39px; height: 39px; place-items: center; border-radius: 11px; color: #16778a; background: #e5f4f6; }.form-card header span.red { color: #b1464e; background: #feedef; }.form-card header span.blue { color: #376fb2; background: #ecf3fc; }.form-card header span.violet { color: #7653aa; background: #f1ecf8; }.form-card header span.green { color: #2e7d5e; background: #e8f6ef; }.form-card header svg { width: 19px; }.form-card h3 { margin: 0; font-size: .88rem; }.form-card header p { margin: 3px 0 0; color: #80909e; font-size: .64rem; }
 .form-card label { display: grid; gap: 6px; margin-top: 15px; color: #4c667b; font-size: .66rem; font-weight: 800; }.form-card label b { width: fit-content; padding: 2px 6px; border-radius: 8px; color: #9a6819; background: #fff0ce; font-size: .52rem; }.form-card input, .form-card textarea { width: 100%; padding: 10px 11px; border: 1px solid #cedae3; border-radius: 9px; outline: none; color: #29465e; background: #fff; font: 500 .74rem/1.45 inherit; box-sizing: border-box; }.form-card input { min-height: 40px; }.form-card textarea { resize: vertical; }.form-card input:focus, .form-card textarea:focus { border-color: #398fa0; box-shadow: 0 0 0 3px rgba(57,143,160,.1); }.form-card input.ng-invalid.ng-touched { border-color: #d45c65; }
@@ -63,4 +69,17 @@ button, input, textarea { font: inherit; }
 :host .patient-actions span { color: #607d8b; font-size: .72rem; }
 :host .patient-actions a { display: inline-flex; align-items: center; min-height: 38px; padding: 8px 11px; border: 1px solid #cddfe5; border-radius: 8px; background: #fff; color: #176c80; font-size: .74rem; font-weight: 700; text-decoration: none; }
 :host .patient-actions a:focus-visible { outline: 3px solid #16758a; outline-offset: 2px; }
+:host .patient-actions button { display:inline-flex; align-items:center; min-height:38px; padding:8px 11px; border:1px solid #cddfe5; border-radius:8px; background:#fff; color:#176c80; font-size:.74rem; font-weight:700; cursor:pointer; }
+:host .patient-actions button:focus-visible { outline:3px solid #16758a; outline-offset:2px; }
+:host .patient-actions button.active { color:#fff; border-color:#176f82; background:#176f82; }
+:host app-treatment-plan { display:block; padding:0 16px 24px; }
+:host app-odontogram-editor { display:block; padding:0 16px 24px; }
 :host .pending-note { color: #8b611f; background: #fff6e2; }
+.clinical-context { display: flex; flex-wrap: wrap; gap: 10px 20px; margin: 12px 25px 0; padding: 12px 14px; border: 1px solid #d7e6e7; border-radius: 11px; background: #f5faf9; }
+.clinical-context > strong { width: 100%; color: #245a5d; font-size: .72rem; }
+.clinical-context > div { flex: 1 1 220px; }
+.clinical-context span { color: #597a7c; font-size: .64rem; font-weight: 800; }
+.clinical-context ul { margin: 5px 0 0; padding-left: 17px; color: #31565a; font-size: .66rem; line-height: 1.55; }
+.clinical-context small { color: #68878b; }
+@media (max-width: 760px) { .clinical-context { margin-right: 12px; margin-left: 12px; } }
+.walk-in-title { margin:18px 8px 8px; color:#357082; font-size:.75rem; }

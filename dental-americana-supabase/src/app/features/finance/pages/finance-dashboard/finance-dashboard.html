@@ -25,9 +25,21 @@
   </header>
   @if (contextPatientId()) {
     <section class="patient-context" aria-label="Cobro del paciente seleccionado">
-      <div><strong>{{ contextPatientName() }}</strong><span>Cuentas y pagos filtrados para este paciente. Los indicadores generales son del consultorio.</span></div>
-      @if (!loading() && !error()) { <strong>Saldo: {{ contextBalance() | currency: 'PEN' : 'S/ ' : '1.2-2' }}</strong> }
-      @if (returnEncounterId()) { <a routerLink="/sistema/atencion" [queryParams]="{ encounterId: returnEncounterId() }">Volver a la atención</a> }
+      <div>
+        <strong>{{ contextPatientName() }}</strong
+        ><span
+          >Cuentas y pagos filtrados para este paciente. Los indicadores generales son del
+          consultorio.</span
+        >
+      </div>
+      @if (!loading() && !error()) {
+        <strong>Saldo: {{ contextBalance() | currency: 'PEN' : 'S/ ' : '1.2-2' }}</strong>
+      }
+      @if (returnEncounterId()) {
+        <a routerLink="/sistema/atencion" [queryParams]="{ encounterId: returnEncounterId() }"
+          >Volver a la atención</a
+        >
+      }
       <a routerLink="/sistema/finanzas">Ver todos los pacientes</a>
     </section>
   }
@@ -50,6 +62,7 @@
           <small>Ingresos de hoy</small
           ><strong>{{ dashboard()!.income | currency: 'PEN' : 'S/ ' : '1.2-2' }}</strong>
           <p>{{ dashboard()!.paymentsCount }} cobros</p>
+          @if (dashboard()!.voidedPaymentsCount) { <p>{{ dashboard()!.voidedPaymentsCount }} anulaciones · − {{ dashboard()!.voidedAmount | currency:'PEN':'S/ ':'1.2-2' }}</p> }
         </div>
       </article>
       <article>
@@ -104,12 +117,21 @@
                 ><span>{{ a.paidAmount | currency: 'PEN' : 'S/ ' : '1.2-2' }}</span
                 ><strong>{{ a.balance | currency: 'PEN' : 'S/ ' : '1.2-2' }}</strong
                 ><span class="chip" [class.paid]="a.status === 'PAGADA'">{{ label(a.status) }}</span
-                ><button [disabled]="a.balance === 0 || !canWrite()" (click)="openPayment(a)">
+                ><button
+                  [disabled]="loading() || !!error() || a.balance === 0 || a.status === 'ANULADA' || !canWrite()"
+                  (click)="openPayment(a)"
+                >
                   <svg lucidePlus></svg>Cobrar
                 </button>
               </article>
             } @empty {
-              <div class="empty">{{ contextPatientId() ? 'No hay cuentas registradas para este paciente. Revisa su tratamiento y presupuesto antes de cobrar.' : 'No existen cuentas por cobrar.' }}</div>
+              <div class="empty">
+                {{
+                  contextPatientId()
+                    ? 'No hay cuentas registradas para este paciente. Revisa su tratamiento y presupuesto antes de cobrar.'
+                    : 'No existen cuentas por cobrar.'
+                }}
+              </div>
             }
           </div>
         }
@@ -124,18 +146,22 @@
                 <div>
                   <strong>{{ p.receiptNumber }}</strong
                   ><small>{{ p.patientName }} · {{ p.planCode }}</small>
+                  <small [class.voided]="p.status === 'ANULADO'">{{ label(p.status) }}</small>
+                  @if (p.voidReason) { <small class="voided">{{ p.voidReason }} · {{ p.voidedAt | date:'dd/MM/yyyy, HH:mm' }} · Usuario #{{ p.voidedBy }}</small> }
                 </div>
                 <span>{{ p.paymentMethod }}</span
                 ><span>{{ p.reference || '—' }}</span
-                ><strong class="income">+ {{ p.amount | currency: 'PEN' : 'S/ ' : '1.2-2' }}</strong
+                ><strong [class.income]="p.status !== 'ANULADO'" [class.voided]="p.status === 'ANULADO'">{{ p.status === 'ANULADO' ? '' : '+' }} {{ p.amount | currency: 'PEN' : 'S/ ' : '1.2-2' }}</strong
                 ><span>{{ p.registeredAt | date: 'HH:mm' }}</span
-                ><button
+                ><div class="payment-actions"><button
                   class="icon"
                   (click)="downloadReceipt(p)"
-                  aria-label="Descargar constancia de pago"
+                  aria-label="Ver constancia firmada"
                 >
                   <svg lucideReceipt></svg>
                 </button>
+                @if (canVoid(p)) { <button class="void-button" type="button" (click)="openVoid(p)">Anular</button> }
+                </div>
               </article>
             } @empty {
               <div class="empty">Todavía no se registraron pagos hoy.</div>
@@ -220,17 +246,31 @@
     </div>
   }
 </section>
+@if (selectedAccount(); as paymentAccount) {
+  <app-payment-agreement
+    [account]="paymentAccount"
+    [paymentBlocked]="loading() || !!error()"
+    [autoOpen]="true"
+    (paid)="load()"
+    (refreshRequested)="load()"
+    (closed)="selectedAccount.set(null)"
+  />
+}
+@if (selectedReceiptPayment(); as receiptPayment) {
+  <app-payment-agreement
+    [receiptPayment]="receiptPayment"
+    (closed)="selectedReceiptPayment.set(null)"
+  />
+}
 @if (modal()) {
   <button class="scrim" (click)="closeModal()"></button>
-  <aside class="modal">
+  <aside class="modal" appModal aria-label="Operación de caja" [modalDismissDisabled]="saving()" (modalDismiss)="closeModal()">
     <header>
       <div>
         <small>Operación confirmada</small>
         <h2>
           @switch (modal()) {
-            @case ('payment') {
-              Registrar pago
-            }
+            @case ('void') { Anular cobro }
             @case ('expense') {
               Registrar gasto
             }
@@ -248,28 +288,15 @@
     @if (error()) {
       <div class="message error"><svg lucideAlertTriangle></svg>{{ error() }}</div>
     }
-    @if (modal() === 'payment') {
-      <form [formGroup]="paymentForm" (ngSubmit)="savePayment()">
-        <div class="operation-summary">
-          <small>Paciente</small><strong>{{ selectedAccount()!.patientName }}</strong>
-          <p>Saldo actual: {{ selectedAccount()!.balance | currency: 'PEN' : 'S/ ' : '1.2-2' }}</p>
-        </div>
-        <label
-          >Método de pago<select formControlName="methodId">
-            @for (m of methods(); track m.id) {
-              <option [ngValue]="m.id">{{ m.name }}</option>
-            }
-          </select></label
-        ><label>Monto<input type="number" step="0.01" formControlName="amount" /></label>
-        @if (methodNeedsReference()) {
-          <label>Referencia / operación<input formControlName="reference" /></label>
-        }
-        <div class="confirmation">
-          <svg lucideCheck></svg>
-          <p>La operación actualizará cuenta, saldo y caja, y generará una constancia.</p>
-        </div>
-        <button class="primary" [disabled]="saving()">Confirmar pago</button>
-      </form>
+    @if (modal() === 'void' && voidTarget(); as payment) {
+      <section class="void-payment">
+        <p><strong>{{ payment.receiptNumber }} · {{ payment.patientName }}</strong></p>
+        <p>El importe de {{ payment.amount | currency:'PEN':'S/ ':'1.2-2' }} volverá al saldo pendiente. La constancia se conservará marcada como anulada.</p>
+        <p>Solo se corrigen cobros de la caja abierta. Si recibiste el dinero, esta acción registra su devolución mediante {{ payment.paymentMethod }}.</p>
+        <label>Motivo de anulación<textarea rows="3" [formControl]="voidReason" [readOnly]="saving()" maxlength="500"></textarea></label>
+        <label class="void-confirm"><input type="checkbox" [checked]="voidConfirmed()" [disabled]="saving()" (change)="voidConfirmed.set(!voidConfirmed())" />Confirmo que el cobro fue un error o que el dinero fue devuelto.</label>
+        <button type="button" class="primary" [disabled]="saving() || !voidConfirmed() || voidReason.invalid" (click)="saveVoid()">{{ saving() ? 'Anulando…' : 'Confirmar anulación' }}</button>
+      </section>
     }
     @if (modal() === 'expense') {
       <form [formGroup]="expenseForm" (ngSubmit)="saveExpense()">

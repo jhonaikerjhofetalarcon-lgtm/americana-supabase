@@ -1,4 +1,4 @@
-<section class="plan-page">
+<section class="plan-page" [class.embedded]="embeddedEncounterId() !== null">
   @if (loading()) {
     <div class="state">
       <svg lucideLoaderCircle class="animate-spin"></svg>
@@ -8,10 +8,12 @@
     <div class="state">
       <svg lucideAlertTriangle></svg>
       <h1>{{ error() }}</h1>
+      <button type="button" (click)="retry()">Reintentar</button>
     </div>
   } @else {
     <header class="top">
-      <a routerLink="/sistema/atencion" [queryParams]="{ encounterId: encounter()?.id }"><svg lucideArrowLeft></svg></a
+      <a routerLink="/sistema/atencion" [queryParams]="{ encounterId: encounter()?.id }"
+        ><svg lucideArrowLeft></svg></a
       ><span>{{ encounter()!.patientName.slice(0, 1) }}</span>
       <div>
         <small>{{ encounter()!.patientHistoryNumber }} · Atención {{ encounter()!.id }}</small>
@@ -22,8 +24,15 @@
         <strong class="plan-status">{{ label(plan()!.status) }}</strong>
       }
     </header>
+    <div class="workflow-guide"><strong>Qué sigue</strong><p>{{ nextStep() }}</p></div>
     @if (error()) {
       <div class="message error"><svg lucideAlertTriangle></svg>{{ error() }}</div>
+    }
+    @if (catalogWarning()) {
+      <div class="message error">
+        <svg lucideAlertTriangle></svg>{{ catalogWarning() }}
+        <button type="button" (click)="retry()">Actualizar</button>
+      </div>
     }
     @if (success()) {
       <div class="message success"><svg lucideCheck></svg>{{ success() }}</div>
@@ -38,6 +47,7 @@
         }
       </div>
     } @else {
+      <fieldset class="plan-fields" [disabled]="saving()">
       <div class="layout">
         <main class="items-panel">
           <header>
@@ -49,9 +59,7 @@
               </div>
             </div>
             @if (plan()!.status === 'BORRADOR' && canWrite()) {
-              <button (click)="addOpen.set(!addOpen())">
-                <svg lucidePlus></svg>Agregar procedimiento
-              </button>
+              <button (click)="toggleAdd()"><svg lucidePlus></svg>Agregar procedimiento</button>
             }
           </header>
           @if (addOpen()) {
@@ -79,8 +87,7 @@
               </div>
               <label>Descripción<input formControlName="description" /></label>
               <div>
-                <button type="button" class="secondary" (click)="addOpen.set(false)">
-                  Cancelar</button
+                <button type="button" class="secondary" (click)="toggleAdd()">Cancelar</button
                 ><button [disabled]="saving()"><svg lucidePlus></svg>Agregar</button>
               </div>
             </form>
@@ -107,7 +114,7 @@
                   @if (
                     canWrite() &&
                     (plan()!.status === 'ACEPTADO' || plan()!.status === 'EN_PROCESO') &&
-                    item.status !== 'COMPLETADO'
+                    item.status !== 'COMPLETADO' && item.status !== 'CANCELADO'
                   ) {
                     <button class="evolve" (click)="openEvolution(item)">Evolución</button>
                     @if (item.status === 'EN_PROCESO' && item.evolutions.length && canWrite()) {
@@ -169,40 +176,45 @@
               <dd>{{ plan()!.total | currency: 'PEN' : 'S/ ' : '1.2-2' }}</dd>
             </div>
           </dl>
+          @if (accountLoading()) {
+            <p class="account-status" role="status">Consultando saldo y pagos…</p>
+          }
+          @if (accountError()) {
+            <div class="account-status error" role="alert">
+              <p>{{ accountError() }}</p>
+              <button type="button" (click)="refreshAccount()">Actualizar saldo</button>
+            </div>
+          }
+          @if (account(); as currentAccount) {
+            <app-payment-agreement
+              [account]="currentAccount"
+              [paymentBlocked]="accountLoading() || !!accountError()"
+              (paid)="refreshAccount()"
+              (refreshRequested)="refreshAccount()"
+            />
+          }
           @if (plan()!.status === 'BORRADOR') {
             <form [formGroup]="planForm" (ngSubmit)="savePlan()">
               <label>Descuento<input type="number" step="0.01" formControlName="discount" /></label
               ><label
                 >Observaciones<textarea rows="3" formControlName="observations"></textarea></label
-              ><button class="save" [disabled]="saving()">
+              ><button class="save" [disabled]="saving() || !canWrite()">
                 <svg lucideSave></svg>Guardar presupuesto
               </button>
             </form>
             <button
               class="present"
-              [disabled]="!plan()!.items.length || saving()"
+              [disabled]="!plan()!.items.length || saving() || !canWrite()"
               (click)="changeStatus('PRESENTADO')"
             >
               Presentar al paciente
             </button>
           } @else if (plan()!.status === 'PRESENTADO') {
-            <label class="accept"
-              ><input
-                type="checkbox"
-                [checked]="acceptance()"
-                (change)="acceptance.set(!acceptance())"
-              /><span
-                ><strong>Aceptación del paciente</strong
-                ><small>El paciente revisó montos y procedimientos.</small></span
-              ></label
-            >
-            <div class="decision">
+            <p>Revisa los procedimientos e importes con el paciente y solicita su firma para aceptar el plan.</p>
+            @if (canWrite()) { <div class="decision">
               <button class="reject" [disabled]="saving()" (click)="changeStatus('RECHAZADO')">
-                Rechazar</button
-              ><button [disabled]="!acceptance() || saving()" (click)="changeStatus('ACEPTADO')">
-                Aceptar plan
-              </button>
-            </div>
+                Rechazar presupuesto</button>
+            </div> }
           } @else if (plan()!.status === 'ACEPTADO') {
             <div class="accepted">
               <svg lucideCheck></svg><strong>Plan aceptado</strong
@@ -216,28 +228,33 @@
               Completar plan
             </button>
           }
+          <app-budget-agreement [plan]="plan()!" (updated)="refreshSignedPlan()" />
         </aside>
       </div>
+      </fieldset>
     }
   }
 </section>
 @if (selectedItem()) {
-  <button class="scrim" (click)="selectedItem.set(null)"></button>
-  <aside class="evolution-modal">
+  <button class="scrim" (click)="closeEvolution()"></button>
+  <aside class="evolution-modal" appModal aria-label="Registrar evolución" [modalDismissDisabled]="saving()" (modalDismiss)="closeEvolution()">
     <header>
       <div>
         <small>Nueva evolución</small>
         <h2>{{ selectedItem()!.serviceName }}</h2>
       </div>
-      <button (click)="selectedItem.set(null)">×</button>
+      <button (click)="closeEvolution()">×</button>
     </header>
     <form [formGroup]="evolutionForm" (ngSubmit)="saveEvolution()">
+      @if (error()) { <div class="message error" role="alert">{{ error() }}</div> }
+      <fieldset class="plan-fields evolution-fields" [disabled]="saving()">
       <label
         >Procedimiento realizado<textarea rows="5" formControlName="procedure"></textarea></label
       ><label>Observaciones<textarea rows="4" formControlName="observations"></textarea></label
       ><label>Próxima sesión<input type="date" formControlName="nextSession" /></label>
       <p><svg lucideSparkles></svg>Este registro queda aprobado con tu usuario profesional.</p>
       <button [disabled]="saving()"><svg lucideCheck></svg>Guardar evolución</button>
+      </fieldset>
     </form>
   </aside>
 }

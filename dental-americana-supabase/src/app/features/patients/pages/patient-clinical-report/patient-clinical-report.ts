@@ -8,6 +8,8 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { timeout } from 'rxjs';
+import { READ_REQUEST_TIMEOUT_MS } from '../../../../core/supabase/request-timeout';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { SupabaseErrorService } from '../../../../core/supabase/supabase-error.service';
 import { ClinicalEncounter } from '../../../clinical/models/clinical.models';
@@ -61,6 +63,7 @@ export class PatientClinicalReportPage implements OnInit {
   }
   load(): void {
     if (!Number.isSafeInteger(this.patientId) || this.patientId <= 0) {
+      this.loading.set(false);
       this.error.set('El identificador del paciente no es válido.');
       return;
     }
@@ -70,7 +73,7 @@ export class PatientClinicalReportPage implements OnInit {
     this.report.set(null);
     this.api
       .load(this.patientId)
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(timeout({ first: READ_REQUEST_TIMEOUT_MS }), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (report) => {
           if (requestId === this.requestId) {

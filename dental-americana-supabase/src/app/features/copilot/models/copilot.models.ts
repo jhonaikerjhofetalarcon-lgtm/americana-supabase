@@ -7,6 +7,14 @@ export type AiDraftType =
   | 'ALERTAS_CLINICAS'
   | 'RESUMEN_PARA_PACIENTE';
 export type AiDraftStatus = 'BORRADOR' | 'APROBADO' | 'RECHAZADO';
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+export interface ChatReply {
+  content: string;
+  mode: 'ai' | 'basic';
+}
 export interface AiDraft {
   id: number;
   encounterId: number;

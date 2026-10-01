@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, of } from 'rxjs';
+import { Payment } from '../models/finance.models';
 import { SupabaseClientService } from '../../../core/supabase/supabase-client.service';
 import { FinanceApiService } from './finance-api.service';
 
@@ -14,15 +15,29 @@ describe('FinanceApiService', () => {
     service = TestBed.inject(FinanceApiService);
   });
 
-  it('requires explicit confirmation when registering a payment', async () => {
+  it('registers an advance with the signed document and current versions', async () => {
     const operationId = '20d1d332-5a31-4b8b-8a8c-a14ebd492e4f';
-    await firstValueFrom(service.pay(7, 2, 150, 'YAPE-1', operationId));
-    expect(rpc).toHaveBeenCalledWith('registrar_pago', {
-      datos: {
+    await firstValueFrom(
+      service.signedAdvance({
         accountId: 7,
+        accountVersion: 4,
+        planVersion: 2,
         paymentMethodId: 2,
         amount: 150,
         reference: 'YAPE-1',
+        signatureData: 'data:image/png;base64,AAAA',
+        operationId,
+      }),
+    );
+    expect(rpc).toHaveBeenCalledWith('registrar_adelanto_firmado', {
+      datos: {
+        accountId: 7,
+        accountVersion: 4,
+        planVersion: 2,
+        paymentMethodId: 2,
+        amount: 150,
+        reference: 'YAPE-1',
+        signatureData: 'data:image/png;base64,AAAA',
         confirmation: true,
         operationId,
       },
@@ -67,5 +82,22 @@ describe('FinanceApiService', () => {
       version_actual: 5,
       confirmacion: true,
     });
+  });
+  it('envía el motivo, la versión y la confirmación al anular', async () => {
+    await firstValueFrom(service.voidPayment(9, 2, 'Cobro duplicado'));
+    expect(rpc).toHaveBeenCalledWith('anular_pago_firmado', { datos: {
+      paymentId: 9, version: 2, reason: 'Cobro duplicado', confirmation: true,
+    } });
+  });
+  it('exporta el estado y motivo de anulación sin ejecutar fórmulas de Excel', async () => {
+    vi.spyOn(service, 'payments').mockReturnValue(of([{
+      registeredAt: '2026-09-29', receiptNumber: 'REC-1', patientName: '=SUM(1,1)',
+      paymentMethod: 'Efectivo', status: 'ANULADO', amount: 100, voidReason: 'Duplicado', voidedAt: '2026-09-29',
+    } as Payment]));
+    vi.spyOn(service, 'expenses').mockReturnValue(of([]));
+    const blob = await firstValueFrom(service.exportReport('2026-09-29', '2026-09-30'));
+    const text = await new Promise<string>((resolve) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.readAsText(blob); });
+    expect(text).toContain('"ANULADO"'); expect(text).toContain('"Duplicado"');
+    expect(text).toContain('"\'=SUM(1,1)"');
   });
 });

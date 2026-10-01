@@ -1,5 +1,24 @@
 # Automatizaciones de WhatsApp
 
+## Control desde el sistema
+
+El propietario odontólogo abre **WhatsApp → Automatizaciones** para consultar la conexión
+y activar el interruptor general y cada flujo: avisos de citas, reserva por horarios y
+seguimiento postconsulta. Los flujos se pueden dejar preparados mientras el interruptor
+general está apagado. El estado **Preparada** indica que ese flujo aún no envía mensajes.
+
+Al pausar un flujo se cancelan sus mensajes automáticos que sigan pendientes. Con el
+interruptor general apagado, las respuestas recibidas quedan para revisión y no modifican
+citas automáticamente. Los mensajes manuales continúan disponibles. Al reactivar, los avisos cancelados no se reenvían; las
+nuevas citas y los futuros recordatorios siguen la configuración vigente.
+
+Para probar la vinculación, usar un número propio con autorización de WhatsApp, enviar
+`HOLA` y luego `RESERVAR`. El webhook de Evolution debe apuntar a
+`https://<project-ref>.supabase.co/functions/v1/whatsapp-webhook` y enviar el secreto
+configurado como `x-webhook-secret`. El despacho requiere el trabajo Cron y el secreto
+`WHATSAPP_CRON_SECRET`. Los botones dependen de la versión de Evolution; el paciente
+también puede responder 1, 2 o 3 por texto.
+
 ## Comportamiento
 
 | Evento | Resultado |

@@ -1,7 +1,14 @@
 import { inject, Injectable } from '@angular/core';
-import { defer, Observable } from 'rxjs';
+import { defer, map, Observable } from 'rxjs';
 import { SupabaseApiService } from '../../../core/supabase/supabase-api.service';
-import { Conversation, FollowUp, InboxPage, Message, WhatsAppSession } from '../models/messaging.models';
+import {
+  AutomationSetting,
+  Conversation,
+  FollowUp,
+  InboxPage,
+  Message,
+  WhatsAppSession,
+} from '../models/messaging.models';
 
 @Injectable({ providedIn: 'root' })
 export class MessagingApiService {
@@ -16,7 +23,11 @@ export class MessagingApiService {
       [],
     );
   }
-  conversationsPage(search = '', before?: { at: string; id: number }, size = 30): Observable<InboxPage<Conversation>> {
+  conversationsPage(
+    search = '',
+    before?: { at: string; id: number },
+    size = 30,
+  ): Observable<InboxPage<Conversation>> {
     return this.rpc<InboxPage<Conversation>>('listar_conversaciones_whatsapp_paginadas', {
       busqueda: search || null,
       antes_de: before?.at ?? null,
@@ -27,7 +38,11 @@ export class MessagingApiService {
   conversationMessages(id: number): Observable<Message[]> {
     return this.rpc<Message[]>('listar_mensajes_conversacion', { conversacion_id: id }, []);
   }
-  conversationMessagesPage(id: number, before?: { at: string; id: number }, size = 50): Observable<InboxPage<Message>> {
+  conversationMessagesPage(
+    id: number,
+    before?: { at: string; id: number },
+    size = 50,
+  ): Observable<InboxPage<Message>> {
     return this.rpc<InboxPage<Message>>('listar_mensajes_conversacion_paginados', {
       conversacion_id: id,
       antes_de: before?.at ?? null,
@@ -38,18 +53,36 @@ export class MessagingApiService {
   followUps(): Observable<FollowUp[]> {
     return this.rpc<FollowUp[]>('listar_seguimientos', {}, []);
   }
-  workdaySummary(): Observable<{ unreadConversations: number; failedMessages: number; reviewConversations: number }> {
+  workdaySummary(): Observable<{
+    unreadConversations: number;
+    failedMessages: number;
+    reviewConversations: number;
+  }> {
     return defer(async () => {
       const results = await Promise.all([
-        this.supabase.from('conversaciones_whatsapp').select('id', { count: 'exact', head: true }).gt('no_leidos', 0),
-        this.supabase.from('mensajes_whatsapp').select('id', { count: 'exact', head: true }).eq('estado', 'FALLIDO').eq('direccion', 'SALIENTE'),
-        this.supabase.from('conversaciones_whatsapp').select('id', { count: 'exact', head: true }).eq('estado', 'DERIVADA'),
+        this.supabase
+          .from('conversaciones_whatsapp')
+          .select('id', { count: 'exact', head: true })
+          .gt('no_leidos', 0),
+        this.supabase
+          .from('mensajes_whatsapp')
+          .select('id', { count: 'exact', head: true })
+          .eq('estado', 'FALLIDO')
+          .eq('direccion', 'SALIENTE'),
+        this.supabase
+          .from('conversaciones_whatsapp')
+          .select('id', { count: 'exact', head: true })
+          .eq('estado', 'DERIVADA'),
       ]);
       for (const result of results) {
         if (result.error || result.count === null)
           this.api.fail(result.error, 'No se pudieron consultar los pendientes de WhatsApp.');
       }
-      return { unreadConversations: results[0].count!, failedMessages: results[1].count!, reviewConversations: results[2].count! };
+      return {
+        unreadConversations: results[0].count!,
+        failedMessages: results[1].count!,
+        reviewConversations: results[2].count!,
+      };
     });
   }
   markRead(id: number): Observable<void> {
@@ -73,6 +106,24 @@ export class MessagingApiService {
   }
   retry(messageId: number): Observable<Message> {
     return this.invoke<Message>('whatsapp-send', { retryMessageId: messageId });
+  }
+  automationSettings(): Observable<AutomationSetting[]> {
+    return this.rpc<AutomationSetting[]>('listar_configuracion', {}, []).pipe(
+      map((settings) =>
+        settings.filter((setting) => setting.key.startsWith('whatsapp.automatizacion.')),
+      ),
+    );
+  }
+  updateAutomationSetting(
+    key: string,
+    active: boolean,
+    version: number,
+  ): Observable<AutomationSetting> {
+    return this.rpc<AutomationSetting>('actualizar_configuracion', {
+      clave: key,
+      valor: String(active),
+      version_actual: version,
+    });
   }
   review(id: number, version: number): Observable<FollowUp> {
     return this.rpc<FollowUp>('revisar_seguimiento', {
@@ -101,8 +152,10 @@ export class MessagingApiService {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'citas' }, () =>
           subscriber.next(),
         )
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'seguimientos_postconsulta' }, () =>
-          subscriber.next(),
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'seguimientos_postconsulta' },
+          () => subscriber.next(),
         )
         .subscribe();
       return () => {
@@ -116,9 +169,10 @@ export class MessagingApiService {
     });
   }
   private rpc<T>(name: string, args: Record<string, unknown>, fallback?: T) {
-    const options = fallback === undefined
-      ? { errorMessage: MessagingApiService.errorMessage }
-      : { errorMessage: MessagingApiService.errorMessage, fallback };
+    const options =
+      fallback === undefined
+        ? { errorMessage: MessagingApiService.errorMessage }
+        : { errorMessage: MessagingApiService.errorMessage, fallback };
     return this.api.rpc<T>(name, args, options);
   }
 }

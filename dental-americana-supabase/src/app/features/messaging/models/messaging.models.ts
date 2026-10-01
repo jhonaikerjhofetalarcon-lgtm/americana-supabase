@@ -1,6 +1,16 @@
 export type MessageType =
-  'ENTRANTE' | 'CITA_CONFIRMACION' | 'CITA_RECORDATORIO' | 'POSTCONSULTA' | 'MANUAL'
-  | 'CITA_CANCELACION' | 'CITA_REPROGRAMACION' | 'CITA_CONFIRMADA' | 'CITA_RECORDATORIO_2H';
+  | 'ENTRANTE'
+  | 'CITA_CONFIRMACION'
+  | 'CITA_RECORDATORIO'
+  | 'POSTCONSULTA'
+  | 'MANUAL'
+  | 'CITA_CANCELACION'
+  | 'CITA_REPROGRAMACION'
+  | 'CITA_CONFIRMADA'
+  | 'CITA_RECORDATORIO_2H'
+  | 'MENU_CITAS'
+  | 'HORARIOS_CITA'
+  | 'CITA_RESERVADA';
 export type MessageStatus =
   | 'PENDIENTE'
   | 'EN_PROCESO'
@@ -59,11 +69,18 @@ export interface Conversation {
 }
 export interface WhatsAppSession {
   status: ConnectionStatus;
+  provider?: 'evolution' | 'meta';
   phone?: string;
   detail?: string;
   qrCode?: string | null;
   pairingCode?: string | null;
   code?: string | null;
+}
+export interface AutomationSetting {
+  key: string;
+  value: string;
+  description: string;
+  version: number;
 }
 export interface FollowUp {
   id: number;

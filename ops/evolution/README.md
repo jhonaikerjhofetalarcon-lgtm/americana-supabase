@@ -1,10 +1,10 @@
 # Evolution API local (pruebas gratuitas)
 
-```bash
-cp .env.example .env
-# Cambia AUTHENTICATION_API_KEY por una clave local larga
+```powershell
+Copy-Item .env.example .env
+# Cambia AUTHENTICATION_API_KEY y EVOLUTION_DB_PASSWORD por claves aleatorias.
 docker compose up -d
-curl http://localhost:8080
+Invoke-RestMethod http://localhost:8080
 ```
 
 Esta instalación usa el DNS actual de Docker y del equipo; no fije una IP de una red Wi-Fi anterior.
@@ -13,20 +13,30 @@ llamar a Evolution API necesitaremos un túnel público temporal (Cloudflare Tun
 
 ## Túnel Cloudflare temporal
 
-Desde esta carpeta, con Evolution API ya levantado, ejecute:
+Desde esta carpeta, con Evolution API ya levantado, ejecute en PowerShell:
 
-```bash
-docker rm -f dental-cloudflared 2>/dev/null || true
-docker run -d --name dental-cloudflared --restart unless-stopped --network host \
-  cloudflare/cloudflared:latest tunnel --no-autoupdate --url http://127.0.0.1:8080
-docker logs dental-cloudflared 2>&1 | grep -A2 'quick Tunnel has been created'
+```powershell
+docker run -d --name dental-cloudflared --restart unless-stopped `
+  --network evolution_evolution-net `
+  cloudflare/cloudflared:latest tunnel --no-autoupdate --url http://evolution-api:8080
+docker logs dental-cloudflared
 ```
 
 Copie la URL `https://...trycloudflare.com` que aparece en los logs y actualice el secreto remoto:
 
-```bash
+```powershell
 npx supabase secrets set EVOLUTION_API_URL=https://<URL_DEL_TUNEL>
 ```
 
 La URL cambia cada vez que se crea un Quick Tunnel. Para producción use un túnel nombrado con dominio
 propio; este túnel temporal solo sirve para pruebas y requiere mantener el equipo encendido.
+
+Si aparece `Tunnel not found` o un error DNS, renueve la URL y sincronícela con Supabase ejecutando
+desde la raíz del repositorio:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\ops\evolution\refresh-tunnel.ps1
+```
+
+El script espera la propagación DNS, actualiza `EVOLUTION_API_URL` y vuelve a desplegar
+`whatsapp-session`. Después genere un QR nuevo desde el sistema.

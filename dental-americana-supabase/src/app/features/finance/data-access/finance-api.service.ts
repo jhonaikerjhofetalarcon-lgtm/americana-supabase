@@ -9,6 +9,7 @@ import {
   Payment,
   PaymentMethod,
   ReceivableStatus,
+  SignedPaymentAgreement,
 } from '../models/finance.models';
 
 @Injectable({ providedIn: 'root' })
@@ -41,6 +42,42 @@ export class FinanceApiService {
       [],
     );
   }
+  accountsForPatient(patientId: number): Observable<Account[]> {
+    return this.read<Account[]>(
+      'listar_cuentas',
+      { estado_filtro: null, paciente_id: patientId },
+      [],
+    );
+  }
+  signedPaymentsForPlan(planId: number): Observable<Payment[]> {
+    return this.read<Payment[]>('listar_acuerdos_plan', { plan_id: planId }, []);
+  }
+  voidPayment(paymentId: number, version: number, reason: string): Observable<Payment> {
+    return this.read<Payment>('anular_pago_firmado', {
+      datos: this.toJson({ paymentId, version, reason, confirmation: true }),
+    });
+  }
+  signedAgreement(paymentId: number): Observable<SignedPaymentAgreement | null> {
+    return this.read<SignedPaymentAgreement | null>(
+      'obtener_acuerdo_pago',
+      { pago_id: paymentId },
+      null,
+    );
+  }
+  signedAdvance(payload: {
+    accountId: number;
+    accountVersion: number;
+    planVersion: number;
+    paymentMethodId: number;
+    amount: number;
+    reference: string | null;
+    signatureData: string;
+    operationId: string;
+  }): Observable<SignedPaymentAgreement> {
+    return this.read<SignedPaymentAgreement>('registrar_adelanto_firmado', {
+      datos: this.toJson({ ...payload, confirmation: true }),
+    });
+  }
   currentCash(): Observable<CashSession | null> {
     return this.read<CashSession | null>('caja_actual', {}, null);
   }
@@ -70,24 +107,6 @@ export class FinanceApiService {
   expenses(fromValue: string, to: string): Observable<Expense[]> {
     return this.read<Expense[]>('listar_gastos', { desde: fromValue, hasta: to }, []);
   }
-  pay(
-    accountId: number,
-    paymentMethodId: number,
-    amount: number,
-    reference: string | null,
-    operationId = crypto.randomUUID(),
-  ): Observable<Payment> {
-    return this.read<Payment>('registrar_pago', {
-      datos: this.toJson({
-        accountId,
-        paymentMethodId,
-        amount,
-        reference,
-        confirmation: true,
-        operationId,
-      }),
-    });
-  }
   expense(
     payload: {
       category: string;
@@ -108,12 +127,12 @@ export class FinanceApiService {
     return combineLatest([this.payments(fromValue, to), this.expenses(fromValue, to)]).pipe(
       map(([payments, expenses]) => {
         const rows = [
-          'tipo,fecha,detalle,monto',
+          'tipo,fecha,detalle,paciente,metodo,estado,monto,motivo_anulacion,fecha_anulacion',
           ...payments.map(
-            (x) => `PAGO,${this.csv(x.registeredAt)},${this.csv(x.receiptNumber)},${x.amount}`,
+            (x) => `PAGO,${this.csv(x.registeredAt)},${this.csv(x.receiptNumber)},${this.csv(x.patientName)},${this.csv(x.paymentMethod)},${this.csv(x.status)},${x.amount},${this.csv(x.voidReason ?? '')},${this.csv(x.voidedAt ?? '')}`,
           ),
           ...expenses.map(
-            (x) => `GASTO,${this.csv(x.registeredAt)},${this.csv(x.description)},${x.amount}`,
+            (x) => `GASTO,${this.csv(x.registeredAt)},${this.csv(x.description)},,${this.csv(x.paymentMethod)},${this.csv(x.status)},${x.amount},,`,
           ),
         ];
         return new Blob([`\uFEFF${rows.join('\n')}`], { type: 'text/csv;charset=utf-8' });
@@ -132,7 +151,9 @@ export class FinanceApiService {
     return this.api.toJson(value);
   }
   private csv(value: string) {
-    return `"${String(value).replaceAll('"', '""')}"`;
+    const text = String(value ?? '');
+    const safe = /^[\s]*[=+@-]|^[\t\r\n]/.test(text) ? "'" + text : text;
+    return `"${safe.replaceAll('"', '""')}"`;
   }
   private fail(error: unknown, fallback: string): never {
     return this.api.fail(error, fallback);

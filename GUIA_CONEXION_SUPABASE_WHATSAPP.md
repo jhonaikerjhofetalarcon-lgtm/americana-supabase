@@ -34,19 +34,20 @@ Redirect URL: https://<SU_DOMINIO>/sistema/login
 
 Agregue también `http://localhost:4200/sistema/login` mientras prueba localmente.
 
-5. En **Authentication → Users**, cree el primer administrador con correo real y contraseña fuerte.
+5. En **Authentication → Users**, cree el primer propietario odontólogo con correo real y contraseña fuerte.
    El trigger creará su perfil. Luego ejecute una sola vez en **SQL Editor**, cambiando el correo:
 
 ```sql
 insert into public.usuarios_roles(usuario_id, rol_id)
 select u.id, r.id
 from public.usuarios u cross join public.roles r
-where lower(u.email) = lower('<CORREO_ADMIN>') and r.codigo = 'ADMINISTRADOR'
+where lower(u.email) = lower('<CORREO_ADMIN>')
+  and r.codigo in ('ADMINISTRADOR', 'ODONTOLOGO')
 on conflict do nothing;
 ```
 
-Salga y vuelva a entrar para refrescar permisos. Desde Administración podrá crear odontólogos; las otras
-cuentas se pueden asignar explícitamente desde SQL hasta que se habilite su flujo de alta.
+Salga y vuelva a entrar para refrescar permisos. Desde Administración podrá crear perfiles de propietario
+odontólogo, odontólogo, recepción y caja.
 
 ## 2. Desplegar las Edge Functions
 
@@ -55,6 +56,7 @@ npx supabase functions deploy whatsapp-send
 npx supabase functions deploy whatsapp-dispatch
 npx supabase functions deploy whatsapp-webhook
 npx supabase functions deploy copilot-generate
+npx supabase functions deploy copilot-chat
 npx supabase functions deploy admin-create-user
 ```
 
@@ -181,7 +183,7 @@ se configura en 120 segundos. El despachador procesa hasta 5 mensajes por ejecuc
 
 ## 7. Prueba final controlada
 
-1. Ingrese con el administrador y cree un odontólogo.
+1. Ingrese con el propietario odontólogo y confirme que puede ver Agenda, Atención, Finanzas, DentalIA y Ajustes.
 2. Cree un paciente de prueba con celular en formato internacional, por ejemplo `51XXXXXXXXX`, y marque
    autorización WhatsApp solo con consentimiento real.
 3. Cree una cita futura. Debe aparecer una confirmación en Seguimientos.
@@ -195,7 +197,31 @@ se configura en 120 segundos. El despachador procesa hasta 5 mensajes por ejecuc
 Revise **Edge Functions → Logs**, **Cron → Job runs**, `mensajes_whatsapp`, `cita_historial_estados` y
 `auditoria`. No haga la primera prueba masiva: use uno o dos números autorizados.
 
-## 8. Copiloto IA opcional
+## 8. Reservas guiadas por WhatsApp con Evolution API
+
+La migración `202609290001_whatsapp_self_booking.sql` añade el menú de citas. El paciente registrado,
+con número único y autorización de WhatsApp, envía `HOLA` o `RESERVAR`; recibe tres horas disponibles
+para **consulta y evaluación** y responde `1`, `2` o `3`. Las horas fijas son 09:00, 10:00, 11:00,
+15:00, 16:00 y 17:00, hora de Perú, según las jornadas de los odontólogos. La selección vence a los
+10 minutos. La agenda se valida de nuevo justo antes de crear la cita, para evitar dobles reservas.
+`CANCELAR` cancela una única cita futura identificable; si hay varias o falta una identidad segura,
+recepción revisa el mensaje. `REPROGRAMAR` se deriva a recepción. El número desconocido también
+requiere revisión antes de agendar.
+
+El modo predeterminado ofrece opciones numeradas en texto porque la conexión actual usa Baileys.
+Los botones reales se habilitan con `EVOLUTION_INTERACTIVE_BUTTONS=true` **solo después** de comprobar
+en un teléfono real que la versión instalada de Evolution los entrega y recibe: algunas versiones
+[aceptan `sendButtons` pero no entregan el mensaje](https://github.com/evolution-foundation/evolution-api/issues/2404).
+Si el proveedor rechaza el botón con un error HTTP 4xx, el despachador envía el texto con las mismas
+opciones. Una respuesta ambigua o un fallo de entrega requiere revisión manual.
+
+Prueba de extremo a extremo con un paciente de ensayo autorizado: `HOLA` → `RESERVAR` → elegir una
+hora → comprobar la cita `WHATSAPP` en agenda → `CONFIRMO` → `CANCELAR` → comprobar que el turno
+quedó libre. Repetir con una hora ocupada entre la oferta y la respuesta, con dos citas futuras y
+con un número desconocido. El webhook y el despachador deben desplegarse tras aplicar la migración.
+
+
+## 9. Copiloto IA opcional
 
 `copilot-generate` funciona con un borrador estructurado local. Para conectar Gemini o un proveedor
 compatible, configure su API key como secreto; para el proveedor compatible también hacen falta
